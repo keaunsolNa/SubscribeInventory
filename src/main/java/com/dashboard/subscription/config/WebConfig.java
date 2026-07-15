@@ -16,7 +16,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig {
 
 	private static final int CONNECT_TIMEOUT_MILLIS = 5_000;
-	private static final int READ_TIMEOUT_MILLIS = 10_000;
+	// OpenAI's /v1/organization/costs aggregates billing data and can exceed 10s; the 60s cache
+	// keeps slow upstream calls to at most one per minute per credential set.
+	private static final int READ_TIMEOUT_MILLIS = 20_000;
 
 	@Bean
 	public WebMvcConfigurer corsConfigurer() {
