@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>구독 서비스 대시보드</title>
+<style>
+	:root {
+		color-scheme: light;
+		--surface-1: #fcfcfb;
+		--surface-2: #ffffff;
+		--page: #f9f9f7;
+		--text-primary: #0b0b0b;
+		--text-secondary: #52514e;
+		--text-muted: #898781;
+		--grid: #e1e0d9;
+		--baseline: #c3c2b7;
+		--border: rgba(11, 11, 11, 0.10);
+		--series-1: #2a78d6;
+		--track: #ecebe6;
+		--good: #0ca30c;
+		--warning: #fab219;
+		--serious: #ec835a;
+		--critical: #d03b3b;
+		--good-ink: #006300;
+		--shadow: 0 1px 2px rgba(11, 11, 11, 0.04), 0 4px 16px rgba(11, 11, 11, 0.05);
+	}
+	:root[data-theme="dark"] {
+		color-scheme: dark;
+		--surface-1: #1a1a19;
+		--surface-2: #202020;
+		--page: #0d0d0d;
+		--text-primary: #ffffff;
+		--text-secondary: #c3c2b7;
+		--text-muted: #898781;
+		--grid: #2c2c2a;
+		--baseline: #383835;
+		--border: rgba(255, 255, 255, 0.10);
+		--series-1: #3987e5;
+		--track: #2c2c2a;
+		--good: #0ca30c;
+		--warning: #fab219;
+		--serious: #ec835a;
+		--critical: #d03b3b;
+		--good-ink: #0ca30c;
+		--shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.4);
+	}
+	@media (prefers-color-scheme: dark) {
+		:root[data-theme="auto"] {
+			color-scheme: dark;
+			--surface-1: #1a1a19;
+			--surface-2: #202020;
+			--page: #0d0d0d;
+			--text-primary: #ffffff;
+			--text-secondary: #c3c2b7;
+			--text-muted: #898781;
+			--grid: #2c2c2a;
+			--baseline: #383835;
+			--border: rgba(255, 255, 255, 0.10);
+			--series-1: #3987e5;
+			--track: #2c2c2a;
+			--good-ink: #0ca30c;
+			--shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.4);
+		}
+	}
+
+	* { box-sizing: border-box; }
+	html, body { margin: 0; padding: 0; }
+	body {
+		background: var(--page);
+		color: var(--text-primary);
+		font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+		font-size: 15px;
+		line-height: 1.5;
+		-webkit-font-smoothing: antialiased;
+	}
+	.wrap { max-width: 1120px; margin: 0 auto; padding: 28px 20px 64px; }
+
+	header.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+	.title h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
+	.title p { margin: 0; color: var(--text-secondary); font-size: 13.5px; }
+	.top-actions { display: flex; align-items: center; gap: 8px; }
+
+	button, select, input {
+		font-family: inherit; font-size: 13.5px; color: var(--text-primary);
+		background: var(--surface-2); border: 1px solid var(--border);
+		border-radius: 8px; padding: 7px 11px; cursor: pointer;
+	}
+	button:hover, select:hover { border-color: var(--baseline); }
+	button.primary { background: var(--series-1); color: #fff; border-color: transparent; font-weight: 600; }
+	button.primary:hover { filter: brightness(1.05); }
+	input { cursor: text; }
+	label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+
+	.config {
+		display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
+		background: var(--surface-1); border: 1px solid var(--border);
+		border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; box-shadow: var(--shadow);
+	}
+	.config .grow { flex: 1 1 260px; }
+	.config input[type="text"] { width: 100%; }
+	.status-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); margin-left: auto; }
+	.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-muted); flex: none; }
+	.dot.live { background: var(--good); }
+	.dot.demo { background: var(--series-1); }
+	.dot.err { background: var(--critical); }
+
+	.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 22px; }
+	.tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow); }
+	.tile .k { font-size: 12.5px; color: var(--text-muted); margin-bottom: 8px; }
+	.tile .v { font-size: 27px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+	.tile .sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+	.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+	.card {
+		background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px;
+		padding: 18px 20px 20px; box-shadow: var(--shadow); position: relative; overflow: hidden;
+	}
+	.card.err { border-color: color-mix(in srgb, var(--critical) 55%, var(--border)); }
+	.card.disabled { opacity: 0.72; }
+	.card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+	.card-head .name { font-size: 16px; font-weight: 700; }
+	.card-head .plan { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+	.badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+	.badge .bdot { width: 7px; height: 7px; border-radius: 50%; }
+	.badge.ok { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good-ink); }
+	.badge.ok .bdot { background: var(--good); }
+	.badge.warning { background: color-mix(in srgb, var(--warning) 20%, transparent); color: var(--text-primary); }
+	.badge.warning .bdot { background: var(--warning); }
+	.badge.critical { background: color-mix(in srgb, var(--critical) 16%, transparent); color: var(--critical); }
+	.badge.critical .bdot { background: var(--critical); }
+	.badge.neutral { background: color-mix(in srgb, var(--text-muted) 16%, transparent); color: var(--text-secondary); }
+	.badge.neutral .bdot { background: var(--text-muted); }
+
+	.hero { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+	.hero .unit { font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-left: 4px; }
+	.hero-label { font-size: 12.5px; color: var(--text-muted); margin-bottom: 5px; }
+
+	.meter { margin: 15px 0 6px; }
+	.meter-track { height: 9px; background: var(--track); border-radius: 999px; overflow: hidden; }
+	.meter-fill { height: 100%; border-radius: 999px; transition: width 0.5s ease; }
+	.meter-row { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--text-secondary); margin-top: 7px; font-variant-numeric: tabular-nums; }
+
+	.card-foot { margin-top: 15px; padding-top: 13px; border-top: 1px solid var(--grid); display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--text-secondary); }
+	.fee { display: flex; align-items: center; gap: 6px; }
+	.fee input { width: 82px; padding: 5px 8px; text-align: right; font-variant-numeric: tabular-nums; }
+	.err-msg { font-size: 13px; color: var(--critical); background: color-mix(in srgb, var(--critical) 8%, transparent); border-radius: 8px; padding: 9px 11px; margin-top: 4px; word-break: break-word; }
+	.muted-note { font-size: 12px; color: var(--text-muted); }
+
+	.banner { display: none; align-items: center; gap: 10px; background: color-mix(in srgb, var(--critical) 10%, var(--surface-1)); border: 1px solid color-mix(in srgb, var(--critical) 40%, var(--border)); color: var(--text-primary); border-radius: 10px; padding: 11px 14px; margin-bottom: 16px; font-size: 13.5px; }
+	.banner.show { display: flex; }
+
+	.keys-panel { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 18px; box-shadow: var(--shadow); }
+	.keys-panel summary { cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--text-secondary); }
+	.keys-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
+	.keys-grid input { width: 100%; }
+	.keys-note { font-size: 12px; color: var(--text-muted); margin-top: 10px; line-height: 1.6; }
+
+	footer.note { margin-top: 30px; font-size: 12.5px; color: var(--text-muted); line-height: 1.7; }
+	footer.note code { background: var(--track); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+	.section-label { font-size: 12.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 4px 0 12px; }
+	a { color: var(--series-1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+	<header class="top">
+		<div class="title">
+			<h1>구독 서비스 대시보드</h1>
+			<p>AI 구독형 서비스의 잔여 할당량 · 크레딧 · 이번 달 사용액을 한눈에</p>
+		</div>
+		<div class="top-actions">
+			<button id="themeBtn" title="테마 전환">🌗 테마</button>
+			<button id="refreshBtn" class="primary">↻ 새로고침</button>
+		</div>
+	</header>
+
+	<div class="config">
+		<label class="field grow">
+			백엔드 API 주소 (비우면 데모 모드)
+			<input type="text" id="backendUrl" placeholder="https://your-backend.example.com" autocomplete="off">
+		</label>
+		<label class="field">
+			모드
+			<select id="modeSel">
+				<option value="demo">데모 (샘플)</option>
+				<option value="live">실시간 (백엔드)</option>
+			</select>
+		</label>
+		<label class="field">
+			자동 새로고침
+			<select id="autoSel">
+				<option value="0">끔</option>
+				<option value="30">30초</option>
+				<option value="60">60초</option>
+				<option value="300">5분</option>
+			</select>
+		</label>
+		<label class="field">
+			접근 토큰 (서버에 설정된 경우)
+			<input type="password" id="accessToken" placeholder="ACCESS_TOKEN" autocomplete="off">
+		</label>
+		<div class="status-line"><span class="dot" id="statDot"></span><span id="statText">준비됨</span></div>
+	</div>
+
+	<details class="keys-panel" id="keysPanel">
+		<summary>🔑 내 API 키 (BYOK — 이 브라우저에만 저장)</summary>
+		<div class="keys-grid">
+			<label class="field">ElevenLabs API Key
+				<input type="password" data-key="elevenlabs.apiKey" placeholder="xi-..." autocomplete="off"></label>
+			<label class="field">xAI Management Key
+				<input type="password" data-key="xai.apiKey" placeholder="xai-..." autocomplete="off"></label>
+			<label class="field">xAI Team ID
+				<input type="password" data-key="xai.teamId" placeholder="UUID" autocomplete="off"></label>
+			<label class="field">OpenAI Admin Key
+				<input type="password" data-key="openai.apiKey" placeholder="sk-admin-..." autocomplete="off"></label>
+			<label class="field">Anthropic Admin Key
+				<input type="password" data-key="anthropic.apiKey" placeholder="sk-ant-admin-..." autocomplete="off"></label>
+		</div>
+		<div class="keys-note">키는 이 브라우저(localStorage)에만 저장됩니다. 조회할 때마다 요청에 실려 백엔드가 각 서비스로
+			중계만 하며, 서버에는 저장·로깅되지 않습니다. 비워두면 서버에 환경변수로 설정된 키(있다면)를 사용합니다.</div>
+	</details>
+
+	<div class="banner" id="banner"><span>⚠︎</span><span id="bannerText"></span></div>
+
+	<div class="summary" id="summary"></div>
+
+	<div class="section-label">서비스별 현황</div>
+	<div class="grid" id="cards"></div>
+
+	<footer class="note" id="footnote"></footer>
+</div>
+
+<script>
+(function () {
+	"use strict";
+
+	const state = {
+		backendUrl: "",
+		mode: "demo",
+		autoSeconds: 0,
+		data: null,
+		timer: null,
+		fees: {},         // providerId -> manual monthly fee override (KRW); config value used otherwise
+		keys: {},         // providerId -> { apiKey, teamId } (BYOK; persisted to this browser only)
+		accessToken: ""   // X-Access-Token for deployments protected by ACCESS_TOKEN
+	};
+
+	// ---- Browser-local persistence (BYOK keys + fee overrides never leave this device) ----
+	const STORAGE_KEY = "subscribe-inventory.v1";
+
+	function readStorage() {
+		try {
+			const raw = localStorage.getItem(STORAGE_KEY);
+			return raw ? JSON.parse(raw) : {};
+		} catch (e) {
+			return {};
+		}
+	}
+
+	function writeStorage() {
+		try {
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(
+				{ keys: state.keys, fees: state.fees, accessToken: state.accessToken }));
+		} catch (e) {
+			// storage unavailable (private mode etc.) -> keys live for this page only
+		}
+	}
+
+	// Returns { providerId: {apiKey, teamId} } with blank fields dropped, or null when no key is set.
+	function keysPayload() {
+		const payload = {};
+		let any = false;
+		Object.keys(state.keys).forEach(function (id) {
+			const entry = state.keys[id] || {};
+			const cleaned = {};
+			if (entry.apiKey && entry.apiKey.trim()) { cleaned.apiKey = entry.apiKey.trim(); }
+			if (entry.teamId && entry.teamId.trim()) { cleaned.teamId = entry.teamId.trim(); }
+			if (Object.keys(cleaned).length > 0) { payload[id] = cleaned; any = true; }
+		});
+		return any ? payload : null;
+	}
+
+	// ---- Demo sample (mirrors the backend DashboardResponse contract) ----
+	function demoData() {
+		const nowIso = new Date().toISOString();
+		const resetIso = new Date(Date.now() + 12 * 24 * 3600 * 1000).toISOString();
+		return {
+			generatedAt: nowIso,
+			providers: [
+				{ providerId: "elevenlabs", displayName: "ElevenLabs", metricType: "QUOTA", status: "OK",
+					plan: "creator", unit: "characters", used: 78400, limit: 100000, remaining: 21600,
+					usedPercent: 78.4, cost: null, currency: "usd", resetsAt: resetIso, message: null, monthlyFee: null },
+				{ providerId: "xai", displayName: "xAI (Grok)", metricType: "BALANCE", status: "OK",
+					plan: "Prepaid", unit: "USD", used: null, limit: null, remaining: 42.75,
+					usedPercent: null, cost: null, currency: "USD", resetsAt: null, message: null, monthlyFee: null },
+				{ providerId: "openai", displayName: "OpenAI", metricType: "COST", status: "OK",
+					plan: "Pay-as-you-go", unit: "USD", used: null, limit: null, remaining: null,
+					usedPercent: null, cost: 18.42, currency: "USD", resetsAt: null, message: null, monthlyFee: null },
+				{ providerId: "anthropic", displayName: "Anthropic (Claude)", metricType: "COST", status: "OK",
+					plan: "Usage-based", unit: "USD", used: null, limit: null, remaining: null,
+					usedPercent: null, cost: 25.10, currency: "USD", resetsAt: null, message: null, monthlyFee: null }
+			]
+		};
+	}
+
+	// ---- Formatting helpers ----
+	const numFmt = new Intl.NumberFormat("ko-KR");
+	const num1 = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 });
+
+	function money(value, currency) {
+		if (value == null) { return "—"; }
+		const cur = (currency || "USD").toUpperCase();
+		try {
+			return new Intl.NumberFormat("en-US", { style: "currency", currency: cur, maximumFractionDigits: 2 }).format(value);
+		} catch (e) {
+			return "$" + num1.format(value);
+		}
+	}
+
+	function compact(value) {
+		if (value == null) { return "—"; }
+		if (value >= 1000) { return numFmt.format(Math.round(value)); }
+		return num1.format(value);
+	}
+
+	function fmtDate(iso) {
+		if (!iso) { return null; }
+		const date = new Date(iso);
+		if (isNaN(date.getTime())) { return null; }
+		return date.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
+	}
+
+	function fmtDateTime(iso) {
+		const date = new Date(iso);
+		if (isNaN(date.getTime())) { return "—"; }
+		return date.toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+	}
+
+	// Manual input wins; otherwise fall back to the fee configured on the backend (application.yml).
+	function effectiveFee(provider) {
+		const manual = state.fees[provider.providerId];
+		if (typeof manual === "number" && !isNaN(manual)) { return manual; }
+		if (typeof provider.monthlyFee === "number") { return provider.monthlyFee; }
+		return undefined;
+	}
+
+	// severity by remaining allowance
+	function quotaSeverity(usedPercent) {
+		if (usedPercent == null) { return "ok"; }
+		if (usedPercent >= 90) { return "critical"; }
+		if (usedPercent >= 75) { return "warning"; }
+		return "ok";
+	}
+
+	function meterColor(severity) {
+		if (severity === "critical") { return "var(--critical)"; }
+		if (severity === "warning") { return "var(--warning)"; }
+		return "var(--series-1)";
+	}
+
+	function statusBadge(provider) {
+		if (provider.status === "DISABLED") {
+			return '<span class="badge neutral"><span class="bdot"></span>미설정</span>';
+		}
+		if (provider.status === "ERROR") {
+			return '<span class="badge critical"><span class="bdot"></span>오류</span>';
+		}
+		if (provider.metricType === "QUOTA") {
+			const sev = quotaSeverity(provider.usedPercent);
+			if (sev === "critical") { return '<span class="badge critical"><span class="bdot"></span>잔여 부족</span>'; }
+			if (sev === "warning") { return '<span class="badge warning"><span class="bdot"></span>주의</span>'; }
+		}
+		return '<span class="badge ok"><span class="bdot"></span>정상</span>';
+	}
+
+	function escapeHtml(str) {
+		return String(str == null ? "" : str).replace(/[&<>"']/g, function (c) {
+			return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+		});
+	}
+
+	// ---- Card renderer ----
+	function renderCard(provider) {
+		const disabled = provider.status === "DISABLED";
+		const error = provider.status === "ERROR";
+		const cls = "card" + (error ? " err" : "") + (disabled ? " disabled" : "");
+		const feeVal = effectiveFee(provider);
+		const feeInput =
+			'<div class="fee">월 구독료 ₩'
+			+ '<input type="number" min="0" step="1000" data-fee="' + provider.providerId + '" '
+			+ 'value="' + (feeVal != null ? feeVal : "") + '" placeholder="0"></div>';
+
+		let bodyHtml = "";
+		if (disabled) {
+			bodyHtml = '<div class="muted-note" style="margin:6px 0 2px;">API 키가 설정되지 않았습니다. 백엔드 환경변수에 키를 넣으면 실시간 값이 표시됩니다.</div>';
+		} else if (error) {
+			bodyHtml = '<div class="err-msg">' + escapeHtml(provider.message || "조회 실패") + '</div>';
+		} else if (provider.metricType === "QUOTA") {
+			const sev = quotaSeverity(provider.usedPercent);
+			const pct = provider.usedPercent != null ? provider.usedPercent : 0;
+			const resetTxt = fmtDate(provider.resetsAt);
+			bodyHtml =
+				'<div class="hero-label">잔여 ' + escapeHtml(provider.unit || "") + '</div>'
+				+ '<div class="hero">' + compact(provider.remaining) + '</div>'
+				+ '<div class="meter"><div class="meter-track">'
+				+ '<div class="meter-fill" style="width:' + Math.min(100, pct) + '%;background:' + meterColor(sev) + ';"></div>'
+				+ '</div><div class="meter-row"><span>' + compact(provider.used) + ' / ' + compact(provider.limit) + ' 사용</span>'
+				+ '<span>' + num1.format(pct) + '%</span></div></div>'
+				+ (resetTxt ? '<div class="muted-note">' + resetTxt + ' 리셋</div>' : "");
+		} else if (provider.metricType === "BALANCE") {
+			bodyHtml =
+				'<div class="hero-label">잔여 크레딧</div>'
+				+ '<div class="hero">' + money(provider.remaining, provider.currency) + '</div>'
+				+ (provider.limit != null || provider.used != null
+					? '<div class="muted-note" style="margin-top:8px;">충전 ' + money(provider.limit, provider.currency)
+						+ ' · 사용 ' + money(provider.used, provider.currency) + '</div>'
+					: '<div class="muted-note" style="margin-top:8px;">선불 잔액 (사용 시 차감)</div>');
+		} else if (provider.metricType === "COST") {
+			bodyHtml =
+				'<div class="hero-label">이번 달 사용액 (누적)</div>'
+				+ '<div class="hero">' + money(provider.cost, provider.currency) + '</div>'
+				+ '<div class="muted-note" style="margin-top:8px;">잔여량 API 미제공 → 월초부터 누적 지출</div>';
+		}
+
+		return ''
+			+ '<div class="' + cls + '">'
+			+ '<div class="card-head"><div><div class="name">' + escapeHtml(provider.displayName) + '</div>'
+			+ '<div class="plan">' + escapeHtml(provider.plan || provider.providerId) + '</div></div>'
+			+ statusBadge(provider) + '</div>'
+			+ bodyHtml
+			+ '<div class="card-foot">' + feeInput + '</div>'
+			+ '</div>';
+	}
+
+	// ---- Summary tiles ----
+	function renderSummary(data) {
+		const providers = data.providers || [];
+		let totalCost = 0;
+		let hasCost = false;
+		let balance = 0;
+		let hasBalance = false;
+		let active = 0;
+		let totalFee = 0;
+
+		providers.forEach(function (p) {
+			if (p.status === "OK") { active += 1; }
+			if (p.metricType === "COST" && p.cost != null) { totalCost += p.cost; hasCost = true; }
+			if (p.metricType === "BALANCE" && p.remaining != null) { balance += p.remaining; hasBalance = true; }
+			const fee = effectiveFee(p);
+			if (typeof fee === "number" && !isNaN(fee)) { totalFee += fee; }
+		});
+
+		const tiles = [
+			{ k: "이번 달 사용액 (누적)", v: hasCost ? money(totalCost, "USD") : "—", sub: "OpenAI + Anthropic" },
+			{ k: "잔여 선불 크레딧", v: hasBalance ? money(balance, "USD") : "—", sub: "xAI 등 선불" },
+			{ k: "월 고정 구독료 합계", v: totalFee > 0 ? "₩" + numFmt.format(totalFee) : "—", sub: "백엔드 설정 + 수동 입력" },
+			{ k: "활성 서비스", v: active + " / " + providers.length, sub: "키 설정 완료 기준" }
+		];
+
+		document.getElementById("summary").innerHTML = tiles.map(function (t) {
+			return '<div class="tile"><div class="k">' + t.k + '</div><div class="v">' + t.v + '</div><div class="sub">' + t.sub + '</div></div>';
+		}).join("");
+	}
+
+	// ---- Render everything ----
+	function render() {
+		const data = state.data;
+		if (!data) { return; }
+		renderSummary(data);
+		document.getElementById("cards").innerHTML = (data.providers || []).map(renderCard).join("");
+
+		document.querySelectorAll('input[data-fee]').forEach(function (input) {
+			input.addEventListener("change", function () {
+				const id = input.getAttribute("data-fee");
+				const val = input.value === "" ? undefined : Number(input.value);
+				if (val === undefined || isNaN(val)) { delete state.fees[id]; } else { state.fees[id] = val; }
+				writeStorage();
+				renderSummary(state.data);
+			});
+		});
+
+		const gen = fmtDateTime(data.generatedAt);
+		document.getElementById("footnote").innerHTML =
+			'마지막 갱신: ' + gen + ' · 데이터 종류 — <b>잔여 할당량</b>(ElevenLabs 문자수), '
+			+ '<b>선불 크레딧</b>(xAI, USD), <b>누적 사용액</b>(OpenAI · Anthropic, 월초부터). '
+			+ 'OpenAI · Anthropic은 잔여량 조회 API가 없어 "이번 달 지출"만 제공됩니다. '
+			+ '월 구독료는 백엔드 <code>application.yml</code>의 <code>monthly-fee</code>로 설정하면 자동 표시됩니다. '
+			+ '실시간 모드는 백엔드(<code>/api/usage</code>)가 각 서비스 키로 대신 조회한 값을 읽습니다.';
+	}
+
+	// ---- Data loading ----
+	function setStatus(kind, text) {
+		const dot = document.getElementById("statDot");
+		dot.className = "dot" + (kind ? " " + kind : "");
+		document.getElementById("statText").textContent = text;
+	}
+
+	function showBanner(msg) {
+		const banner = document.getElementById("banner");
+		if (!msg) { banner.classList.remove("show"); return; }
+		document.getElementById("bannerText").textContent = msg;
+		banner.classList.add("show");
+	}
+
+	async function load() {
+		showBanner("");
+		if (state.mode === "demo" || !state.backendUrl) {
+			state.data = demoData();
+			setStatus("demo", "데모 모드 (샘플 데이터)");
+			render();
+			return;
+		}
+		setStatus("", "불러오는 중…");
+		try {
+			const base = state.backendUrl.replace(/\/+$/, "");
+			const payload = keysPayload();
+			const headers = { "Accept": "application/json" };
+			if (state.accessToken) { headers["X-Access-Token"] = state.accessToken; }
+			let res;
+			if (payload) {
+				headers["Content-Type"] = "application/json";
+				res = await fetch(base + "/api/usage", {
+					method: "POST",
+					headers: headers,
+					body: JSON.stringify({ keys: payload })
+				});
+			} else {
+				res = await fetch(base + "/api/usage", { headers: headers });
+			}
+			if (res.status === 401) { throw new Error("HTTP 401 — 접근 토큰을 확인하세요"); }
+			if (!res.ok) { throw new Error("HTTP " + res.status); }
+			const json = await res.json();
+			state.data = json;
+			setStatus("live", "실시간 · " + fmtDateTime(json.generatedAt));
+			render();
+		} catch (err) {
+			setStatus("err", "연결 실패");
+			showBanner("백엔드 연결에 실패했습니다 (" + err.message + "). 주소·CORS·서버 상태를 확인하세요. 아래는 마지막 표시본입니다.");
+			if (!state.data) { state.data = demoData(); render(); }
+		}
+	}
+
+	// ---- Auto refresh ----
+	function applyAutoRefresh() {
+		if (state.timer) { clearInterval(state.timer); state.timer = null; }
+		if (state.autoSeconds > 0) {
+			state.timer = setInterval(load, state.autoSeconds * 1000);
+		}
+	}
+
+	// ---- Wiring ----
+	document.getElementById("refreshBtn").addEventListener("click", load);
+	document.getElementById("backendUrl").addEventListener("change", function (e) { state.backendUrl = e.target.value.trim(); });
+	document.getElementById("modeSel").addEventListener("change", function (e) { state.mode = e.target.value; load(); });
+	document.getElementById("autoSel").addEventListener("change", function (e) { state.autoSeconds = Number(e.target.value); applyAutoRefresh(); });
+	document.getElementById("themeBtn").addEventListener("click", function () {
+		const root = document.documentElement;
+		const cur = root.getAttribute("data-theme");
+		const next = cur === "dark" ? "light" : (cur === "light" ? "auto" : "dark");
+		root.setAttribute("data-theme", next);
+	});
+
+	// BYOK key inputs: hydrate from browser storage, persist on change.
+	const stored = readStorage();
+	if (stored.keys) { state.keys = stored.keys; }
+	if (stored.fees) { state.fees = stored.fees; }
+	if (stored.accessToken) {
+		state.accessToken = stored.accessToken;
+		document.getElementById("accessToken").value = stored.accessToken;
+	}
+	document.getElementById("accessToken").addEventListener("change", function (e) {
+		state.accessToken = e.target.value.trim();
+		writeStorage();
+		load();
+	});
+	document.querySelectorAll("input[data-key]").forEach(function (input) {
+		const parts = input.getAttribute("data-key").split(".");
+		const id = parts[0];
+		const field = parts[1];
+		if (state.keys[id] && state.keys[id][field]) { input.value = state.keys[id][field]; }
+		input.addEventListener("change", function () {
+			if (!state.keys[id]) { state.keys[id] = {}; }
+			state.keys[id][field] = input.value.trim();
+			writeStorage();
+			load();
+		});
+	});
+
+	// Served from the backend itself (http/https): connect to the same origin automatically.
+	// Opened as a downloaded file (file://): keep the demo default and let the user type a URL.
+	if (location.protocol === "http:" || location.protocol === "https:") {
+		state.backendUrl = location.origin;
+		state.mode = "live";
+		document.getElementById("backendUrl").value = location.origin;
+		document.getElementById("modeSel").value = "live";
+	}
+
+	load();
+})();
+</script>
+</body>
+</html>

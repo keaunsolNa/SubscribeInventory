@@ -1,0 +1,12 @@
+target/
+*.class
+.idea/
+*.iml
+.claude
+
+# Secrets — never commit real keys
+.env
+.env.*
+application-local.yml
+application-local.yaml
+application-local.properties
