@@ -57,4 +57,12 @@ class AccessTokenFilterTest {
 						.header("Access-Control-Request-Method", "POST"))
 				.andExpect(status().isOk());
 	}
+
+	@Test
+	void corsAllowsDeleteForUnsubscribe() throws Exception {
+		mockMvc.perform(options("/api/alerts/subscriptions/abc")
+						.header("Origin", "https://example.com")
+						.header("Access-Control-Request-Method", "DELETE"))
+				.andExpect(status().isOk());
+	}
 }

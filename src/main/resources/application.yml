@@ -1,5 +1,8 @@
 server:
   port: ${PORT:8080}
+  # Behind Cloud Run's proxy the container sees http; honor X-Forwarded-* so same-origin
+  # detection (CORS) and generated URLs use the real https scheme.
+  forward-headers-strategy: framework
 
 spring:
   application:
