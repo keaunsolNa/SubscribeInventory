@@ -92,6 +92,8 @@ public class AlertSubscriptionService {
 			List<String> alerts = alertEvaluator.evaluate(providers, subscription.thresholds());
 			String fingerprint = String.join("\n", alerts);
 			boolean changed = !fingerprint.equals(entry.lastFingerprint());
+			log.info("Sweep subscription {}: providers=[{}], alerts={}, changed={}",
+					entry.id(), statusSummary(providers), alerts.size(), changed);
 			boolean shouldNotify = !alerts.isEmpty() && changed;
 			if (shouldNotify) {
 				slackNotifier.send(subscription.webhookUrl(),
@@ -109,6 +111,17 @@ public class AlertSubscriptionService {
 			log.warn("Alert sweep failed for subscription {}: {}", entry.id(), exception.toString());
 			return false;
 		}
+	}
+
+	private String statusSummary(List<ProviderUsage> providers) {
+		StringBuilder summary = new StringBuilder();
+		for (ProviderUsage usage : providers) {
+			if (summary.length() > 0) {
+				summary.append(", ");
+			}
+			summary.append(usage.getProviderId()).append('=').append(usage.getStatus());
+		}
+		return summary.toString();
 	}
 
 	private void requireActive() {
