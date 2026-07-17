@@ -597,6 +597,7 @@
 		const cur = root.getAttribute("data-theme");
 		const next = cur === "dark" ? "light" : (cur === "light" ? "auto" : "dark");
 		root.setAttribute("data-theme", next);
+		renderAuthArea();
 	});
 
 	// ---- Auth (Google login when the deployment has it configured; legacy token otherwise) ----
@@ -614,6 +615,13 @@
 			headers["X-Access-Token"] = state.accessToken;
 		}
 		return headers;
+	}
+
+	function isDarkTheme() {
+		const theme = document.documentElement.getAttribute("data-theme");
+		if (theme === "dark") { return true; }
+		if (theme === "light") { return false; }
+		return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 	}
 
 	function renderAuthArea() {
@@ -639,8 +647,11 @@
 		} else {
 			area.innerHTML = '<div id="gsiBtn"></div>';
 			if (window.google && google.accounts && google.accounts.id) {
-				google.accounts.id.renderButton(
-					document.getElementById("gsiBtn"), { theme: "outline", size: "medium" });
+				google.accounts.id.renderButton(document.getElementById("gsiBtn"), {
+					theme: isDarkTheme() ? "filled_black" : "outline",
+					size: "medium",
+					shape: "rectangular"
+				});
 			}
 		}
 	}
