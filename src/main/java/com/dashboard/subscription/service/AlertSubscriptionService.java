@@ -55,26 +55,36 @@ public class AlertSubscriptionService {
 	}
 
 	static final int MAX_SUBSCRIPTIONS = 100;
+	static final int MAX_SUBSCRIPTIONS_PER_USER = 3;
 
-	public String subscribe(AlertSubscription subscription) {
+	public String subscribe(AlertSubscription subscription, String ownerId) {
 		requireActive();
 		validate(subscription);
+		String owner = ownerId == null ? "" : ownerId;
 		String webhookUrl = subscription.webhookUrl().trim();
 		String hash = webhookHash(webhookUrl);
 
 		List<StoredSubscription> existing = subscriptionStore.list();
 		List<StoredSubscription> replaced = existing.stream()
-				.filter(entry -> hash.equals(entry.webhookHash()))
+				.filter(entry -> hash.equals(entry.webhookHash()) && owner.equals(entry.ownerId()))
 				.toList();
 		if (existing.size() - replaced.size() >= MAX_SUBSCRIPTIONS) {
 			throw new IllegalArgumentException("subscription limit reached");
+		}
+		if (!owner.isEmpty()) {
+			long ownedAfterReplace = existing.stream()
+					.filter(entry -> owner.equals(entry.ownerId()))
+					.count() - replaced.size();
+			if (ownedAfterReplace >= MAX_SUBSCRIPTIONS_PER_USER) {
+				throw new IllegalArgumentException("per-user subscription limit reached");
+			}
 		}
 
 		sendConfirmation(webhookUrl);
 		AlertSubscription normalized =
 				new AlertSubscription(webhookUrl, subscription.keys(),
 						resolveThresholds(subscription.thresholds()));
-		String id = subscriptionStore.create(cryptoService.encrypt(toJson(normalized)), hash);
+		String id = subscriptionStore.create(cryptoService.encrypt(toJson(normalized)), hash, owner);
 		// Same webhook resubscribed = settings update: drop the previous entries after the new
 		// one exists so there is never a gap without a subscription.
 		replaced.forEach(entry -> subscriptionStore.delete(entry.id()));
@@ -105,8 +115,23 @@ public class AlertSubscriptionService {
 		}
 	}
 
-	public void unsubscribe(String subscriptionId) {
+	/**
+	 * Deletes the subscription. When an authenticated owner is present, only their own
+	 * subscription may be removed; legacy (ownerless) mode keeps the old direct delete.
+	 */
+	public void unsubscribe(String subscriptionId, String ownerId) {
 		requireActive();
+		String owner = ownerId == null ? "" : ownerId;
+		if (owner.isEmpty()) {
+			subscriptionStore.delete(subscriptionId);
+			return;
+		}
+		boolean owned = subscriptionStore.list().stream()
+				.anyMatch(entry -> entry.id().equals(subscriptionId)
+						&& owner.equals(entry.ownerId()));
+		if (!owned) {
+			throw new IllegalArgumentException("subscription not found");
+		}
 		subscriptionStore.delete(subscriptionId);
 	}
 

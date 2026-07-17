@@ -59,13 +59,13 @@ class AlertSubscriptionServiceTest {
 
 	@Test
 	void subscribeStoresEncryptedPayloadWithDefaultsApplied() throws Exception {
-		when(subscriptionStore.create(anyString(), anyString())).thenReturn("doc123");
+		when(subscriptionStore.create(anyString(), anyString(), anyString())).thenReturn("doc123");
 
-		String id = service.subscribe(new AlertSubscription(WEBHOOK, KEYS, null));
+		String id = service.subscribe(new AlertSubscription(WEBHOOK, KEYS, null), "");
 
 		assertThat(id).isEqualTo("doc123");
 		ArgumentCaptor<String> stored = ArgumentCaptor.forClass(String.class);
-		verify(subscriptionStore).create(stored.capture(), anyString());
+		verify(subscriptionStore).create(stored.capture(), anyString(), anyString());
 		assertThat(stored.getValue()).doesNotContain("byok-key").doesNotContain("hooks.slack.com");
 		AlertSubscription decrypted = new ObjectMapper()
 				.readValue(cryptoService.decrypt(stored.getValue()), AlertSubscription.class);
@@ -75,9 +75,9 @@ class AlertSubscriptionServiceTest {
 
 	@Test
 	void subscribeSendsConfirmationToWebhook() {
-		when(subscriptionStore.create(anyString(), anyString())).thenReturn("doc123");
+		when(subscriptionStore.create(anyString(), anyString(), anyString())).thenReturn("doc123");
 
-		service.subscribe(new AlertSubscription(WEBHOOK, KEYS, null));
+		service.subscribe(new AlertSubscription(WEBHOOK, KEYS, null), "");
 
 		verify(slackNotifier).send(eq(WEBHOOK), contains("구독"));
 	}
@@ -87,18 +87,18 @@ class AlertSubscriptionServiceTest {
 		org.mockito.Mockito.doThrow(new RuntimeException("404"))
 				.when(slackNotifier).send(anyString(), anyString());
 
-		assertThatThrownBy(() -> service.subscribe(new AlertSubscription(WEBHOOK, KEYS, null)))
+		assertThatThrownBy(() -> service.subscribe(new AlertSubscription(WEBHOOK, KEYS, null), ""))
 				.isInstanceOf(IllegalArgumentException.class);
-		verify(subscriptionStore, never()).create(anyString(), anyString());
+		verify(subscriptionStore, never()).create(anyString(), anyString(), anyString());
 	}
 
 	@Test
 	void subscribeReplacesExistingSubscriptionForSameWebhook() throws Exception {
 		StoredSubscription existing = storedSubscription("");
 		when(subscriptionStore.list()).thenReturn(List.of(existing));
-		when(subscriptionStore.create(anyString(), anyString())).thenReturn("doc-new");
+		when(subscriptionStore.create(anyString(), anyString(), anyString())).thenReturn("doc-new");
 
-		String id = service.subscribe(new AlertSubscription(WEBHOOK, KEYS, null));
+		String id = service.subscribe(new AlertSubscription(WEBHOOK, KEYS, null), "");
 
 		assertThat(id).isEqualTo("doc-new");
 		verify(subscriptionStore).delete("doc123");
@@ -108,26 +108,59 @@ class AlertSubscriptionServiceTest {
 	void subscribeRejectsWhenSubscriptionLimitReached() throws Exception {
 		java.util.List<StoredSubscription> full = new java.util.ArrayList<>();
 		for (int index = 0; index < 100; index++) {
-			full.add(new StoredSubscription("id-" + index, "enc", "other-hash-" + index, ""));
+			full.add(new StoredSubscription("id-" + index, "enc", "other-hash-" + index, "", ""));
 		}
 		when(subscriptionStore.list()).thenReturn(full);
 
-		assertThatThrownBy(() -> service.subscribe(new AlertSubscription(WEBHOOK, KEYS, null)))
+		assertThatThrownBy(() -> service.subscribe(new AlertSubscription(WEBHOOK, KEYS, null), ""))
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("limit");
-		verify(subscriptionStore, never()).create(anyString(), anyString());
+		verify(subscriptionStore, never()).create(anyString(), anyString(), anyString());
 	}
 
 	@Test
 	void subscribeRejectsNonSlackWebhook() {
 		assertThatThrownBy(() -> service.subscribe(
-				new AlertSubscription("https://evil.example.com/hook", KEYS, null)))
+				new AlertSubscription("https://evil.example.com/hook", KEYS, null), ""))
 				.isInstanceOf(IllegalArgumentException.class);
 	}
 
 	@Test
+	void subscribeEnforcesPerUserLimit() {
+		java.util.List<StoredSubscription> owned = new java.util.ArrayList<>();
+		for (int index = 0; index < 3; index++) {
+			owned.add(new StoredSubscription("id-" + index, "enc", "hash-" + index, "user-1", ""));
+		}
+		when(subscriptionStore.list()).thenReturn(owned);
+
+		assertThatThrownBy(() -> service.subscribe(new AlertSubscription(WEBHOOK, KEYS, null), "user-1"))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("per-user");
+	}
+
+	@Test
+	void unsubscribeByOwnerRemovesOwnSubscription() {
+		when(subscriptionStore.list()).thenReturn(List.of(
+				new StoredSubscription("doc123", "enc", "h", "user-1", "")));
+
+		service.unsubscribe("doc123", "user-1");
+
+		verify(subscriptionStore).delete("doc123");
+	}
+
+	@Test
+	void unsubscribeRejectsForeignSubscription() {
+		when(subscriptionStore.list()).thenReturn(List.of(
+				new StoredSubscription("doc123", "enc", "h", "user-1", "")));
+
+		assertThatThrownBy(() -> service.unsubscribe("doc123", "user-2"))
+				.isInstanceOf(IllegalArgumentException.class);
+		verify(subscriptionStore, never()).delete(anyString());
+	}
+
+	@Test
 	void subscribeRejectsMissingKeys() {
-		assertThatThrownBy(() -> service.subscribe(new AlertSubscription(WEBHOOK, Map.of(), null)))
+		assertThatThrownBy(() -> service.subscribe(new AlertSubscription(WEBHOOK, Map.of(), null), ""))
 				.isInstanceOf(IllegalArgumentException.class);
 	}
 
@@ -135,7 +168,7 @@ class AlertSubscriptionServiceTest {
 	void subscribeRefusedWhenNotConfigured() {
 		properties.setEncryptionKey("");
 
-		assertThatThrownBy(() -> service.subscribe(new AlertSubscription(WEBHOOK, KEYS, null)))
+		assertThatThrownBy(() -> service.subscribe(new AlertSubscription(WEBHOOK, KEYS, null), ""))
 				.isInstanceOf(IllegalStateException.class);
 	}
 
@@ -179,7 +212,7 @@ class AlertSubscriptionServiceTest {
 
 	@Test
 	void sweepIsolatesBrokenSubscription() throws Exception {
-		StoredSubscription broken = new StoredSubscription("bad", "not-decryptable", "h-x", "");
+		StoredSubscription broken = new StoredSubscription("bad", "not-decryptable", "h-x", "", "");
 		StoredSubscription healthy = storedSubscription("");
 		when(subscriptionStore.list()).thenReturn(List.of(broken, healthy));
 		when(cachedUsageService.collect(KEYS)).thenReturn(response(quotaAt(92.0d)));
@@ -196,7 +229,7 @@ class AlertSubscriptionServiceTest {
 		String encrypted = cryptoService.encrypt(
 				new ObjectMapper().writeValueAsString(subscription));
 		return new StoredSubscription("doc123", encrypted,
-				AlertSubscriptionService.webhookHash(WEBHOOK), fingerprint);
+				AlertSubscriptionService.webhookHash(WEBHOOK), "", fingerprint);
 	}
 
 	private ProviderUsage quotaAt(double percent) {
@@ -217,3 +250,4 @@ class AlertSubscriptionServiceTest {
 				.build();
 	}
 }
+

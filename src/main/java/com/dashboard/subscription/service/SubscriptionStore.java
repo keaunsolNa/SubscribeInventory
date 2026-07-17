@@ -36,18 +36,20 @@ public class SubscriptionStore {
 	}
 
 	public record StoredSubscription(String id, String encryptedPayload, String webhookHash,
-			String lastFingerprint) {
+			String ownerId, String lastFingerprint) {
 	}
 
 	/**
 	 * @param webhookHash SHA-256 of the webhook URL, stored in plaintext (irreversible) so
 	 *        duplicate subscriptions can be detected without decrypting every payload.
+	 * @param ownerId authenticated user id owning this subscription; empty in legacy mode.
 	 */
-	public String create(String encryptedPayload, String webhookHash) {
+	public String create(String encryptedPayload, String webhookHash, String ownerId) {
 		ObjectNode document = objectMapper.createObjectNode();
 		ObjectNode fields = document.putObject("fields");
 		fields.putObject("payload").put("stringValue", encryptedPayload);
 		fields.putObject("webhookHash").put("stringValue", webhookHash);
+		fields.putObject("ownerId").put("stringValue", ownerId == null ? "" : ownerId);
 		fields.putObject("lastFingerprint").put("stringValue", "");
 
 		JsonNode response = restClient.post()
@@ -80,6 +82,7 @@ public class SubscriptionStore {
 						name.substring(name.lastIndexOf('/') + 1),
 						fields.path("payload").path("stringValue").asText(),
 						fields.path("webhookHash").path("stringValue").asText(),
+						fields.path("ownerId").path("stringValue").asText(),
 						fields.path("lastFingerprint").path("stringValue").asText()));
 			}
 			pageToken = response.hasNonNull("nextPageToken")

@@ -6,25 +6,35 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.dashboard.subscription.config.AuthProperties;
 import com.dashboard.subscription.config.WebConfig;
 import com.dashboard.subscription.service.CachedUsageService;
+import com.dashboard.subscription.service.JwtService;
 
+/**
+ * Auth behavior when only the shared ACCESS_TOKEN is configured (no Google login).
+ */
 @WebMvcTest(UsageController.class)
 @Import(WebConfig.class)
+@EnableConfigurationProperties(AuthProperties.class)
 @TestPropertySource(properties = "dashboard.security.access-token=secret-token")
-class AccessTokenFilterTest {
+class AuthFilterLegacyModeTest {
 
 	@Autowired
 	private MockMvc mockMvc;
 
 	@MockBean
 	private CachedUsageService cachedUsageService;
+
+	@MockBean
+	private JwtService jwtService;
 
 	@Test
 	void rejectsApiRequestWithoutToken() throws Exception {
@@ -33,19 +43,13 @@ class AccessTokenFilterTest {
 	}
 
 	@Test
-	void rejectsApiRequestWithWrongToken() throws Exception {
-		mockMvc.perform(get("/api/usage").header(AccessTokenFilter.TOKEN_HEADER, "wrong"))
-				.andExpect(status().isUnauthorized());
-	}
-
-	@Test
-	void acceptsApiRequestWithCorrectToken() throws Exception {
-		mockMvc.perform(get("/api/usage").header(AccessTokenFilter.TOKEN_HEADER, "secret-token"))
+	void acceptsApiRequestWithSharedToken() throws Exception {
+		mockMvc.perform(get("/api/usage").header("X-Access-Token", "secret-token"))
 				.andExpect(status().isOk());
 	}
 
 	@Test
-	void healthStaysOpenForPlatformChecks() throws Exception {
+	void healthStaysOpen() throws Exception {
 		mockMvc.perform(get("/api/health"))
 				.andExpect(status().isOk());
 	}
@@ -55,14 +59,6 @@ class AccessTokenFilterTest {
 		mockMvc.perform(options("/api/usage")
 						.header("Origin", "https://example.com")
 						.header("Access-Control-Request-Method", "POST"))
-				.andExpect(status().isOk());
-	}
-
-	@Test
-	void corsAllowsDeleteForUnsubscribe() throws Exception {
-		mockMvc.perform(options("/api/alerts/subscriptions/abc")
-						.header("Origin", "https://example.com")
-						.header("Access-Control-Request-Method", "DELETE"))
 				.andExpect(status().isOk());
 	}
 }

@@ -18,9 +18,14 @@ spring:
 #   and GCP_PROJECT_ID (Firestore project) are both set — i.e. on deployments. Users subscribe
 #   from the dashboard (POST /api/alerts/subscriptions); Cloud Scheduler sweeps hourly via
 #   POST /api/alerts/check. Threshold values below are the subscription defaults.
+# auth: Google-login mode activates when GOOGLE_CLIENT_ID and JWT_SECRET are both set;
+#   otherwise the shared ACCESS_TOKEN (or fully open local mode) stays in effect.
 dashboard:
   security:
     access-token: ${ACCESS_TOKEN:}
+  auth:
+    google-client-id: ${GOOGLE_CLIENT_ID:}
+    jwt-secret: ${JWT_SECRET:}
   alerts:
     encryption-key: ${ENCRYPTION_KEY:}
     project-id: ${GCP_PROJECT_ID:}

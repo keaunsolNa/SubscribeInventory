@@ -12,7 +12,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.web.bind.annotation.RequestAttribute;
+
 import com.dashboard.subscription.domain.AlertSubscription;
+import com.dashboard.subscription.domain.AuthUser;
 import com.dashboard.subscription.service.AlertSubscriptionService;
 import com.dashboard.subscription.service.SweepResult;
 
@@ -31,13 +34,16 @@ public class AlertController {
 	}
 
 	@PostMapping("/subscriptions")
-	public Map<String, String> subscribe(@RequestBody AlertSubscription subscription) {
-		return Map.of("id", alertSubscriptionService.subscribe(subscription));
+	public Map<String, String> subscribe(@RequestBody AlertSubscription subscription,
+			@RequestAttribute(name = "authUser", required = false) AuthUser user) {
+		return Map.of("id",
+				alertSubscriptionService.subscribe(subscription, user == null ? "" : user.id()));
 	}
 
 	@DeleteMapping("/subscriptions/{subscriptionId}")
-	public ResponseEntity<Void> unsubscribe(@PathVariable String subscriptionId) {
-		alertSubscriptionService.unsubscribe(subscriptionId);
+	public ResponseEntity<Void> unsubscribe(@PathVariable String subscriptionId,
+			@RequestAttribute(name = "authUser", required = false) AuthUser user) {
+		alertSubscriptionService.unsubscribe(subscriptionId, user == null ? "" : user.id());
 		return ResponseEntity.noContent().build();
 	}
 

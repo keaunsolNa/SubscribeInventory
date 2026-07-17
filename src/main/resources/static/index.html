@@ -170,6 +170,7 @@
 			<p>AI 구독형 서비스의 잔여 할당량 · 크레딧 · 이번 달 사용액을 한눈에</p>
 		</div>
 		<div class="top-actions">
+			<div id="authArea" style="display:none; align-items:center; gap:8px;"></div>
 			<button id="themeBtn" title="테마 전환">🌗 테마</button>
 			<button id="refreshBtn" class="primary">↻ 새로고침</button>
 		</div>
@@ -196,7 +197,7 @@
 				<option value="300">5분</option>
 			</select>
 		</label>
-		<label class="field">
+		<label class="field" id="accessTokenField">
 			접근 토큰 (서버에 설정된 경우)
 			<input type="password" id="accessToken" placeholder="ACCESS_TOKEN" autocomplete="off">
 		</label>
@@ -288,6 +289,7 @@
 				keys: state.keys,
 				fees: state.fees,
 				accessToken: state.accessToken,
+				session: { token: auth.token, email: auth.email },
 				alertSubscriptionId: state.alertSubscriptionId,
 				alertInputs: {
 					webhook: document.getElementById("alertWebhook").value,
@@ -547,10 +549,9 @@
 		}
 		setStatus("", "불러오는 중…");
 		try {
-			const base = state.backendUrl.replace(/\/+$/, "");
+			const base = baseUrl();
 			const payload = keysPayload();
-			const headers = { "Accept": "application/json" };
-			if (state.accessToken) { headers["X-Access-Token"] = state.accessToken; }
+			const headers = authHeaders({ "Accept": "application/json" });
 			let res;
 			if (payload) {
 				headers["Content-Type"] = "application/json";
@@ -562,7 +563,10 @@
 			} else {
 				res = await fetch(base + "/api/usage", { headers: headers });
 			}
-			if (res.status === 401) { throw new Error("HTTP 401 — 접근 토큰을 확인하세요"); }
+			if (res.status === 401) {
+				throw new Error(auth.mode === "google"
+					? "HTTP 401 — 로그인이 필요합니다" : "HTTP 401 — 접근 토큰을 확인하세요");
+			}
 			if (!res.ok) { throw new Error("HTTP " + res.status); }
 			const json = await res.json();
 			state.data = json;
@@ -595,12 +599,103 @@
 		root.setAttribute("data-theme", next);
 	});
 
-	// ---- Slack alert subscription ----
+	// ---- Auth (Google login when the deployment has it configured; legacy token otherwise) ----
+	const auth = { mode: "open", googleClientId: "", token: "", email: "" };
+
+	function baseUrl() {
+		return state.backendUrl.replace(/\/+$/, "");
+	}
+
 	function authHeaders(extra) {
 		const headers = extra || {};
-		if (state.accessToken) { headers["X-Access-Token"] = state.accessToken; }
+		if (auth.token) {
+			headers["Authorization"] = "Bearer " + auth.token;
+		} else if (state.accessToken) {
+			headers["X-Access-Token"] = state.accessToken;
+		}
 		return headers;
 	}
+
+	function renderAuthArea() {
+		const area = document.getElementById("authArea");
+		if (auth.mode !== "google") {
+			area.style.display = "none";
+			return;
+		}
+		area.style.display = "flex";
+		if (auth.token) {
+			area.innerHTML = '<span class="muted-note">' + escapeHtml(auth.email) + '</span>'
+				+ '<button id="logoutBtn">로그아웃</button>';
+			document.getElementById("logoutBtn").addEventListener("click", function () {
+				auth.token = "";
+				auth.email = "";
+				writeStorage();
+				if (window.google && google.accounts && google.accounts.id) {
+					google.accounts.id.disableAutoSelect();
+				}
+				renderAuthArea();
+				load();
+			});
+		} else {
+			area.innerHTML = '<div id="gsiBtn"></div>';
+			if (window.google && google.accounts && google.accounts.id) {
+				google.accounts.id.renderButton(
+					document.getElementById("gsiBtn"), { theme: "outline", size: "medium" });
+			}
+		}
+	}
+
+	async function onGoogleCredential(response) {
+		try {
+			const res = await fetch(baseUrl() + "/api/auth/login", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ idToken: response.credential })
+			});
+			const json = await res.json();
+			if (!res.ok) { throw new Error(json.error || ("HTTP " + res.status)); }
+			auth.token = json.token;
+			auth.email = json.email;
+			writeStorage();
+			renderAuthArea();
+			load();
+		} catch (err) {
+			setStatus("err", "로그인 실패: " + err.message);
+		}
+	}
+
+	function loadGoogleSignIn() {
+		const script = document.createElement("script");
+		script.src = "https://accounts.google.com/gsi/client";
+		script.onload = function () {
+			google.accounts.id.initialize({
+				client_id: auth.googleClientId,
+				callback: onGoogleCredential
+			});
+			renderAuthArea();
+		};
+		document.head.appendChild(script);
+	}
+
+	async function initAuth() {
+		if (!state.backendUrl) { load(); return; }
+		try {
+			const res = await fetch(baseUrl() + "/api/auth/config");
+			const cfg = await res.json();
+			auth.mode = cfg.mode || "open";
+			auth.googleClientId = cfg.googleClientId || "";
+		} catch (err) {
+			auth.mode = "open";
+		}
+		if (auth.mode === "google") {
+			document.getElementById("accessTokenField").style.display = "none";
+			renderAuthArea();
+			loadGoogleSignIn();
+		}
+		load();
+	}
+
+	// ---- Slack alert subscription ----
 
 	function renderAlertPanel() {
 		const subscribed = !!state.alertSubscriptionId;
@@ -680,6 +775,10 @@
 	if (stored.keys) { state.keys = stored.keys; }
 	if (stored.fees) { state.fees = stored.fees; }
 	if (stored.alertSubscriptionId) { state.alertSubscriptionId = stored.alertSubscriptionId; }
+	if (stored.session && stored.session.token) {
+		auth.token = stored.session.token;
+		auth.email = stored.session.email || "";
+	}
 	if (stored.alertInputs) {
 		document.getElementById("alertWebhook").value = stored.alertInputs.webhook || "";
 		document.getElementById("alertQuota").value = stored.alertInputs.quota || "";
@@ -721,7 +820,7 @@
 		document.getElementById("modeSel").value = "live";
 	}
 
-	load();
+	initAuth();
 })();
 </script>
 </body>

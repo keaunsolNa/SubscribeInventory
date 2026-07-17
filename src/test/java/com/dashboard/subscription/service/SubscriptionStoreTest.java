@@ -49,7 +49,7 @@ class SubscriptionStoreTest {
 				.setBody("{\"name\":\"projects/test-project/databases/(default)/documents/alertSubscriptions/doc123\"}")
 				.addHeader("Content-Type", "application/json"));
 
-		String id = store.create("ENCRYPTED", "hash-1");
+		String id = store.create("ENCRYPTED", "hash-1", "owner-1");
 
 		assertThat(id).isEqualTo("doc123");
 		RecordedRequest recorded = server.takeRequest(2, TimeUnit.SECONDS);
@@ -57,7 +57,8 @@ class SubscriptionStoreTest {
 		assertThat(recorded.getPath())
 				.isEqualTo("/v1/projects/test-project/databases/(default)/documents/alertSubscriptions");
 		assertThat(recorded.getHeader("Authorization")).isEqualTo("Bearer test-oauth-token");
-		assertThat(recorded.getBody().readUtf8()).contains("ENCRYPTED").contains("hash-1");
+		assertThat(recorded.getBody().readUtf8())
+				.contains("ENCRYPTED").contains("hash-1").contains("owner-1");
 	}
 
 	@Test
@@ -75,9 +76,10 @@ class SubscriptionStoreTest {
 
 		List<StoredSubscription> subscriptions = store.list();
 
+		// Legacy documents without an ownerId field parse to an empty owner.
 		assertThat(subscriptions).containsExactly(
-				new StoredSubscription("a1", "ENC-A", "h-a", "fp-a"),
-				new StoredSubscription("b2", "ENC-B", "h-b", ""));
+				new StoredSubscription("a1", "ENC-A", "h-a", "", "fp-a"),
+				new StoredSubscription("b2", "ENC-B", "h-b", "", ""));
 	}
 
 	@Test

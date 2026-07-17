@@ -42,8 +42,14 @@ status(OK|DISABLED|ERROR), used, limit, remaining, usedPercent, cost, currency, 
 
 ## 보안
 
-- **토큰 인증**: 환경변수 `ACCESS_TOKEN` 설정 시 `/api/**`에 `X-Access-Token` 헤더 요구
-  (`/api/health` 제외). 미설정이면 개방(로컬용).
+- **인증 3모드** (`AuthFilter`):
+  - **Google 로그인 모드**: `GOOGLE_CLIENT_ID` + `JWT_SECRET` 설정 시. 사용자는 Google로 로그인
+    (`POST /api/auth/login`에서 ID 토큰 → 자체 세션 JWT 7일). `/api/**`는 `Authorization: Bearer` 필요.
+    구독은 소유자에게 귀속(본인 것만 해지/갱신, 사용자당 3개 제한).
+  - **레거시 토큰 모드**: `ACCESS_TOKEN`만 설정 시 공유 `X-Access-Token` 헤더 요구.
+  - **개방 모드**: 아무것도 미설정(로컬).
+  - 모든 모드에서 `/api/health`·`/api/auth/config`·`/api/auth/login`은 개방,
+    Cloud Scheduler의 `/api/alerts/check` 호출은 `X-Access-Token`으로 통과.
 - **캐시**: 동일 키 조합 요청은 60초 TTL 캐시로 상류 API 호출을 줄임. 캐시 키는 자격증명의
   SHA-256 지문이라 사용자 간 데이터 격리, 평문 키 미보관. 최대 500엔트리.
 - 키는 절대 커밋 금지 — `.gitignore`에 `.env*`, `application-local.*` 방어선 있음.
