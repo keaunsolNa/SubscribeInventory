@@ -3,8 +3,9 @@ package com.dashboard.subscription.service;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import com.dashboard.subscription.config.AlertProperties;
 import com.dashboard.subscription.domain.AlertSubscription;
@@ -23,6 +24,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class AlertSubscriptionService {
 
 	static final String SLACK_WEBHOOK_PREFIX = "https://hooks.slack.com/";
+
+	private static final Logger log = LoggerFactory.getLogger(AlertSubscriptionService.class);
 
 	private final AlertProperties properties;
 	private final CryptoService cryptoService;
@@ -97,8 +100,13 @@ public class AlertSubscriptionService {
 			if (changed) {
 				subscriptionStore.updateFingerprint(entry.id(), fingerprint);
 			}
+			if (shouldNotify) {
+				log.info("Alert notification sent for subscription {}", entry.id());
+			}
 			return shouldNotify;
 		} catch (Exception exception) {
+			// Message only — payloads (keys, webhooks) must never reach the logs.
+			log.warn("Alert sweep failed for subscription {}: {}", entry.id(), exception.toString());
 			return false;
 		}
 	}

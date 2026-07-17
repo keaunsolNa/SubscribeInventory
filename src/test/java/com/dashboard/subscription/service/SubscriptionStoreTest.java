@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 
 import com.dashboard.subscription.config.AlertProperties;
+import com.dashboard.subscription.config.WebConfig;
 import com.dashboard.subscription.service.SubscriptionStore.StoredSubscription;
 
 import okhttp3.mockwebserver.MockResponse;
@@ -30,7 +31,11 @@ class SubscriptionStoreTest {
 		AlertProperties properties = new AlertProperties();
 		properties.setProjectId("test-project");
 		properties.setFirestoreBaseUrl(server.url("/").toString().replaceAll("/$", ""));
-		store = new SubscriptionStore(properties, () -> "test-oauth-token", RestClient.builder());
+		// Build through the production customizer so factory limitations (e.g. PATCH support)
+		// surface here instead of only in production.
+		RestClient.Builder builder = RestClient.builder();
+		new WebConfig().restClientCustomizer().customize(builder);
+		store = new SubscriptionStore(properties, () -> "test-oauth-token", builder);
 	}
 
 	@AfterEach

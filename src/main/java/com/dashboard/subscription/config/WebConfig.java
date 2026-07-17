@@ -1,9 +1,12 @@
 package com.dashboard.subscription.config;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
+
 import org.springframework.boot.web.client.RestClientCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -36,10 +39,13 @@ public class WebConfig {
 
 	@Bean
 	public RestClientCustomizer restClientCustomizer() {
+		// JDK HttpClient (not HttpURLConnection) so PATCH is supported — Firestore updates need it.
 		return builder -> {
-			SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-			factory.setConnectTimeout(CONNECT_TIMEOUT_MILLIS);
-			factory.setReadTimeout(READ_TIMEOUT_MILLIS);
+			HttpClient httpClient = HttpClient.newBuilder()
+					.connectTimeout(Duration.ofMillis(CONNECT_TIMEOUT_MILLIS))
+					.build();
+			JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
+			factory.setReadTimeout(Duration.ofMillis(READ_TIMEOUT_MILLIS));
 			builder.requestFactory(factory);
 		};
 	}
