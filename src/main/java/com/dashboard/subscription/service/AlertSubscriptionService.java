@@ -92,8 +92,9 @@ public class AlertSubscriptionService {
 			List<String> alerts = alertEvaluator.evaluate(providers, subscription.thresholds());
 			String fingerprint = String.join("\n", alerts);
 			boolean changed = !fingerprint.equals(entry.lastFingerprint());
-			log.info("Sweep subscription {}: providers=[{}], alerts={}, changed={}",
-					entry.id(), statusSummary(providers), alerts.size(), changed);
+			log.info("Sweep subscription {}: providers=[{}], thresholds={}, alerts={}, changed={}",
+					entry.id(), statusSummary(providers), subscription.thresholds(), alerts.size(),
+					changed);
 			boolean shouldNotify = !alerts.isEmpty() && changed;
 			if (shouldNotify) {
 				slackNotifier.send(subscription.webhookUrl(),

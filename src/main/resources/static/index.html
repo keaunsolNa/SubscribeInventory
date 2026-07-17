@@ -287,7 +287,13 @@
 				keys: state.keys,
 				fees: state.fees,
 				accessToken: state.accessToken,
-				alertSubscriptionId: state.alertSubscriptionId
+				alertSubscriptionId: state.alertSubscriptionId,
+				alertInputs: {
+					webhook: document.getElementById("alertWebhook").value,
+					quota: document.getElementById("alertQuota").value,
+					balance: document.getElementById("alertBalance").value,
+					cost: document.getElementById("alertCost").value
+				}
 			}));
 		} catch (e) {
 			// storage unavailable (private mode etc.) -> keys live for this page only
@@ -672,6 +678,15 @@
 	if (stored.keys) { state.keys = stored.keys; }
 	if (stored.fees) { state.fees = stored.fees; }
 	if (stored.alertSubscriptionId) { state.alertSubscriptionId = stored.alertSubscriptionId; }
+	if (stored.alertInputs) {
+		document.getElementById("alertWebhook").value = stored.alertInputs.webhook || "";
+		document.getElementById("alertQuota").value = stored.alertInputs.quota || "";
+		document.getElementById("alertBalance").value = stored.alertInputs.balance || "";
+		document.getElementById("alertCost").value = stored.alertInputs.cost || "";
+	}
+	["alertWebhook", "alertQuota", "alertBalance", "alertCost"].forEach(function (id) {
+		document.getElementById(id).addEventListener("change", writeStorage);
+	});
 	renderAlertPanel();
 	if (stored.accessToken) {
 		state.accessToken = stored.accessToken;
