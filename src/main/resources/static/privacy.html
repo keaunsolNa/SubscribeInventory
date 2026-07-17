@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>개인정보 및 데이터 처리 안내 — 구독 서비스 대시보드</title>
+<style>
+	:root {
+		color-scheme: light;
+		--page: #f9f9f7;
+		--surface: #fcfcfb;
+		--text-primary: #0b0b0b;
+		--text-secondary: #52514e;
+		--border: rgba(11, 11, 11, 0.10);
+		--accent: #2a78d6;
+	}
+	@media (prefers-color-scheme: dark) {
+		:root[data-theme="auto"] {
+			color-scheme: dark;
+			--page: #0d0d0d;
+			--surface: #1a1a19;
+			--text-primary: #ffffff;
+			--text-secondary: #c3c2b7;
+			--border: rgba(255, 255, 255, 0.10);
+			--accent: #3987e5;
+		}
+	}
+	* { box-sizing: border-box; }
+	body {
+		margin: 0; padding: 28px 20px 64px;
+		background: var(--page); color: var(--text-primary);
+		font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+		font-size: 15px; line-height: 1.7;
+	}
+	.wrap { max-width: 760px; margin: 0 auto; }
+	h1 { font-size: 22px; margin: 0 0 6px; }
+	.date { color: var(--text-secondary); font-size: 13px; margin-bottom: 24px; }
+	h2 { font-size: 16px; margin: 28px 0 8px; }
+	section {
+		background: var(--surface); border: 1px solid var(--border);
+		border-radius: 12px; padding: 4px 20px 16px; margin-bottom: 14px;
+	}
+	ul { padding-left: 20px; margin: 8px 0; }
+	li { margin: 4px 0; }
+	a { color: var(--accent); }
+	.back { display: inline-block; margin-bottom: 18px; font-size: 13.5px; }
+	code { background: var(--border); padding: 1px 6px; border-radius: 5px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+	<a class="back" href="/">← 대시보드로 돌아가기</a>
+	<h1>개인정보 및 데이터 처리 안내</h1>
+	<div class="date">시행일: 2026-07-18</div>
+
+	<section>
+		<h2>1. 서비스 개요</h2>
+		<p>구독 서비스 대시보드(이하 "서비스")는 사용자가 직접 입력한 API 키로 각 AI 서비스
+		(ElevenLabs, xAI, OpenAI, Anthropic)의 잔여 할당량·크레딧·사용액을 조회해 보여주고,
+		희망 시 Slack으로 잔여량 경고를 보내는 도구입니다.</p>
+	</section>
+
+	<section>
+		<h2>2. 처리하는 정보와 방식</h2>
+		<ul>
+			<li><b>Google 계정 정보</b> — 로그인 시 Google이 제공하는 계정 식별자와 이메일 주소를
+				세션 확인 용도로만 사용합니다. 세션 토큰은 사용자의 브라우저에 저장되며 7일 후 만료됩니다.</li>
+			<li><b>API 키 (조회 용도)</b> — 사용자의 브라우저(localStorage)에만 저장됩니다.
+				조회 요청 시 서버를 경유해 각 AI 서비스로 전달될 뿐, <b>서버에 저장되거나 기록(로깅)되지 않습니다.</b></li>
+			<li><b>API 키·Slack Webhook (알림 구독 용도, 선택)</b> — 알림 구독을 신청한 경우에만,
+				해당 정보를 <b>AES-256-GCM으로 암호화하여</b> 서버 데이터베이스(Google Cloud Firestore,
+				서울 리전)에 저장합니다. 매시 정각 잔여량 점검에만 사용됩니다.</li>
+			<li><b>사용량·비용 데이터</b> — 화면 표시와 알림 판정에만 사용하며, 서버에는 최대 60초간
+				캐시된 후 삭제됩니다.</li>
+		</ul>
+	</section>
+
+	<section>
+		<h2>3. 보관 기간과 삭제</h2>
+		<ul>
+			<li>알림 구독 정보는 <b>"구독 해지" 즉시 서버에서 삭제</b>됩니다.</li>
+			<li>브라우저에 저장된 키·설정은 브라우저의 사이트 데이터 삭제로 언제든 제거할 수 있습니다.</li>
+			<li>서버는 요청 기록에 IP·경로 등 표준 웹 로그를 남기며(Google Cloud 기본), API 키 등
+				민감정보는 로그에 기록하지 않습니다.</li>
+		</ul>
+	</section>
+
+	<section>
+		<h2>4. 제3자 제공 및 처리 위탁</h2>
+		<ul>
+			<li>수집한 정보를 제3자에게 판매하거나 제공하지 않습니다.</li>
+			<li>서비스 운영 인프라로 Google Cloud(서울 리전)를 이용하며, 조회 시 사용자의 요청에 따라
+				각 AI 서비스(ElevenLabs·xAI·OpenAI·Anthropic) 및 Slack(알림 구독 시)으로 데이터가 전송됩니다.</li>
+		</ul>
+	</section>
+
+	<section>
+		<h2>5. 이용자의 권리와 유의사항</h2>
+		<ul>
+			<li>알림 구독의 등록·변경·해지는 대시보드에서 직접 할 수 있습니다.</li>
+			<li>API 키는 가능한 한 <b>필요 최소 권한</b>으로 발급해 사용하시길 권장합니다
+				(예: OpenAI는 <code>api.usage.read</code> 범위만 가진 Admin 키).</li>
+			<li>키 유출이 의심되면 해당 서비스 콘솔에서 즉시 키를 폐기(revoke)하세요.</li>
+		</ul>
+	</section>
+
+	<section>
+		<h2>6. 문의</h2>
+		<p>데이터 처리에 관한 문의: <a href="mailto:knsol19921@gmail.com">knsol19921@gmail.com</a></p>
+	</section>
+</div>
+</body>
+</html>
