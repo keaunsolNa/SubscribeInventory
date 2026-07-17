@@ -35,13 +35,19 @@ public class SubscriptionStore {
 		this.restClient = restClientBuilder.build();
 	}
 
-	public record StoredSubscription(String id, String encryptedPayload, String lastFingerprint) {
+	public record StoredSubscription(String id, String encryptedPayload, String webhookHash,
+			String lastFingerprint) {
 	}
 
-	public String create(String encryptedPayload) {
+	/**
+	 * @param webhookHash SHA-256 of the webhook URL, stored in plaintext (irreversible) so
+	 *        duplicate subscriptions can be detected without decrypting every payload.
+	 */
+	public String create(String encryptedPayload, String webhookHash) {
 		ObjectNode document = objectMapper.createObjectNode();
 		ObjectNode fields = document.putObject("fields");
 		fields.putObject("payload").put("stringValue", encryptedPayload);
+		fields.putObject("webhookHash").put("stringValue", webhookHash);
 		fields.putObject("lastFingerprint").put("stringValue", "");
 
 		JsonNode response = restClient.post()
@@ -56,21 +62,29 @@ public class SubscriptionStore {
 	}
 
 	public List<StoredSubscription> list() {
-		JsonNode response = restClient.get()
-				.uri(collectionUrl() + "?pageSize=300")
-				.header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenProvider.accessToken())
-				.retrieve()
-				.body(JsonNode.class);
-
 		List<StoredSubscription> subscriptions = new ArrayList<>();
-		for (JsonNode document : response.path("documents")) {
-			String name = document.path("name").asText();
-			JsonNode fields = document.path("fields");
-			subscriptions.add(new StoredSubscription(
-					name.substring(name.lastIndexOf('/') + 1),
-					fields.path("payload").path("stringValue").asText(),
-					fields.path("lastFingerprint").path("stringValue").asText()));
-		}
+		String pageToken = null;
+		do {
+			String url = collectionUrl() + "?pageSize=300"
+					+ (pageToken == null ? "" : "&pageToken=" + pageToken);
+			JsonNode response = restClient.get()
+					.uri(url)
+					.header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenProvider.accessToken())
+					.retrieve()
+					.body(JsonNode.class);
+
+			for (JsonNode document : response.path("documents")) {
+				String name = document.path("name").asText();
+				JsonNode fields = document.path("fields");
+				subscriptions.add(new StoredSubscription(
+						name.substring(name.lastIndexOf('/') + 1),
+						fields.path("payload").path("stringValue").asText(),
+						fields.path("webhookHash").path("stringValue").asText(),
+						fields.path("lastFingerprint").path("stringValue").asText()));
+			}
+			pageToken = response.hasNonNull("nextPageToken")
+					? response.path("nextPageToken").asText() : null;
+		} while (pageToken != null && !pageToken.isEmpty());
 		return subscriptions;
 	}
 

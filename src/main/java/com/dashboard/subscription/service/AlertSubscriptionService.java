@@ -1,5 +1,9 @@
 package com.dashboard.subscription.service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 
@@ -50,14 +54,55 @@ public class AlertSubscriptionService {
 		return properties.isSubscriptionActive() && cryptoService.isActive();
 	}
 
+	static final int MAX_SUBSCRIPTIONS = 100;
+
 	public String subscribe(AlertSubscription subscription) {
 		requireActive();
 		validate(subscription);
-		AlertSubscription normalized = new AlertSubscription(
-				subscription.webhookUrl().trim(),
-				subscription.keys(),
-				resolveThresholds(subscription.thresholds()));
-		return subscriptionStore.create(cryptoService.encrypt(toJson(normalized)));
+		String webhookUrl = subscription.webhookUrl().trim();
+		String hash = webhookHash(webhookUrl);
+
+		List<StoredSubscription> existing = subscriptionStore.list();
+		List<StoredSubscription> replaced = existing.stream()
+				.filter(entry -> hash.equals(entry.webhookHash()))
+				.toList();
+		if (existing.size() - replaced.size() >= MAX_SUBSCRIPTIONS) {
+			throw new IllegalArgumentException("subscription limit reached");
+		}
+
+		sendConfirmation(webhookUrl);
+		AlertSubscription normalized =
+				new AlertSubscription(webhookUrl, subscription.keys(),
+						resolveThresholds(subscription.thresholds()));
+		String id = subscriptionStore.create(cryptoService.encrypt(toJson(normalized)), hash);
+		// Same webhook resubscribed = settings update: drop the previous entries after the new
+		// one exists so there is never a gap without a subscription.
+		replaced.forEach(entry -> subscriptionStore.delete(entry.id()));
+		return id;
+	}
+
+	/**
+	 * Delivers a confirmation message so a broken webhook is rejected at subscribe time instead
+	 * of failing silently on every sweep.
+	 */
+	private void sendConfirmation(String webhookUrl) {
+		try {
+			slackNotifier.send(webhookUrl,
+					"🔔 구독 서비스 대시보드 알림 구독이 등록되었습니다. 임계값 도달 시 이 채널로 알림이 전송됩니다.");
+		} catch (Exception exception) {
+			throw new IllegalArgumentException(
+					"webhook delivery failed — check the webhook URL", exception);
+		}
+	}
+
+	static String webhookHash(String webhookUrl) {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			return HexFormat.of().formatHex(
+					digest.digest(webhookUrl.getBytes(StandardCharsets.UTF_8)));
+		} catch (NoSuchAlgorithmException exception) {
+			throw new IllegalStateException("SHA-256 unavailable", exception);
+		}
 	}
 
 	public void unsubscribe(String subscriptionId) {
@@ -70,13 +115,11 @@ public class AlertSubscriptionService {
 			return new SweepResult(false, 0, 0);
 		}
 		List<StoredSubscription> stored = subscriptionStore.list();
-		int notified = 0;
-		for (StoredSubscription entry : stored) {
-			if (sweepOne(entry)) {
-				notified++;
-			}
-		}
-		return new SweepResult(true, stored.size(), notified);
+		// Parallel so one slow upstream cannot stretch the sweep past the request timeout.
+		long notified = stored.parallelStream()
+				.filter(this::sweepOne)
+				.count();
+		return new SweepResult(true, stored.size(), (int) notified);
 	}
 
 	/**

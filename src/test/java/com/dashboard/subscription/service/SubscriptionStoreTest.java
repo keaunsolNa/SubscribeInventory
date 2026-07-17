@@ -49,7 +49,7 @@ class SubscriptionStoreTest {
 				.setBody("{\"name\":\"projects/test-project/databases/(default)/documents/alertSubscriptions/doc123\"}")
 				.addHeader("Content-Type", "application/json"));
 
-		String id = store.create("ENCRYPTED");
+		String id = store.create("ENCRYPTED", "hash-1");
 
 		assertThat(id).isEqualTo("doc123");
 		RecordedRequest recorded = server.takeRequest(2, TimeUnit.SECONDS);
@@ -57,7 +57,7 @@ class SubscriptionStoreTest {
 		assertThat(recorded.getPath())
 				.isEqualTo("/v1/projects/test-project/databases/(default)/documents/alertSubscriptions");
 		assertThat(recorded.getHeader("Authorization")).isEqualTo("Bearer test-oauth-token");
-		assertThat(recorded.getBody().readUtf8()).contains("ENCRYPTED");
+		assertThat(recorded.getBody().readUtf8()).contains("ENCRYPTED").contains("hash-1");
 	}
 
 	@Test
@@ -66,9 +66,9 @@ class SubscriptionStoreTest {
 				.setBody("""
 						{"documents":[
 						  {"name":"projects/p/databases/(default)/documents/alertSubscriptions/a1",
-						   "fields":{"payload":{"stringValue":"ENC-A"},"lastFingerprint":{"stringValue":"fp-a"}}},
+						   "fields":{"payload":{"stringValue":"ENC-A"},"webhookHash":{"stringValue":"h-a"},"lastFingerprint":{"stringValue":"fp-a"}}},
 						  {"name":"projects/p/databases/(default)/documents/alertSubscriptions/b2",
-						   "fields":{"payload":{"stringValue":"ENC-B"},"lastFingerprint":{"stringValue":""}}}
+						   "fields":{"payload":{"stringValue":"ENC-B"},"webhookHash":{"stringValue":"h-b"},"lastFingerprint":{"stringValue":""}}}
 						]}
 						""")
 				.addHeader("Content-Type", "application/json"));
@@ -76,8 +76,38 @@ class SubscriptionStoreTest {
 		List<StoredSubscription> subscriptions = store.list();
 
 		assertThat(subscriptions).containsExactly(
-				new StoredSubscription("a1", "ENC-A", "fp-a"),
-				new StoredSubscription("b2", "ENC-B", ""));
+				new StoredSubscription("a1", "ENC-A", "h-a", "fp-a"),
+				new StoredSubscription("b2", "ENC-B", "h-b", ""));
+	}
+
+	@Test
+	void listFollowsPageTokensAcrossPages() throws InterruptedException {
+		server.enqueue(new MockResponse()
+				.setBody("""
+						{"documents":[
+						  {"name":"projects/p/databases/(default)/documents/alertSubscriptions/a1",
+						   "fields":{"payload":{"stringValue":"ENC-A"},"webhookHash":{"stringValue":"h-a"},"lastFingerprint":{"stringValue":""}}}
+						],"nextPageToken":"token-2"}
+						""")
+				.addHeader("Content-Type", "application/json"));
+		server.enqueue(new MockResponse()
+				.setBody("""
+						{"documents":[
+						  {"name":"projects/p/databases/(default)/documents/alertSubscriptions/b2",
+						   "fields":{"payload":{"stringValue":"ENC-B"},"webhookHash":{"stringValue":"h-b"},"lastFingerprint":{"stringValue":""}}}
+						]}
+						""")
+				.addHeader("Content-Type", "application/json"));
+
+		List<StoredSubscription> subscriptions = store.list();
+
+		assertThat(subscriptions).hasSize(2);
+		assertThat(subscriptions)
+				.extracting(StoredSubscription::id)
+				.containsExactly("a1", "b2");
+		server.takeRequest(2, TimeUnit.SECONDS);
+		RecordedRequest secondPage = server.takeRequest(2, TimeUnit.SECONDS);
+		assertThat(secondPage.getPath()).contains("pageToken=token-2");
 	}
 
 	@Test
