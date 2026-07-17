@@ -6,26 +6,23 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
-import com.dashboard.subscription.config.AlertProperties;
-
 /**
- * Posts alert text to the configured Slack Incoming Webhook. The webhook URL is a secret;
- * it is read from configuration and never logged.
+ * Posts alert text to a Slack Incoming Webhook. URL validation happens once at subscribe time
+ * ({@link AlertSubscriptionService}); stored payloads are encrypted, so only URLs that passed
+ * that gate ever reach this sender. Webhook URLs are never logged.
  */
 @Service
 public class SlackNotifier {
 
-	private final AlertProperties properties;
 	private final RestClient restClient;
 
-	public SlackNotifier(AlertProperties properties, RestClient.Builder restClientBuilder) {
-		this.properties = properties;
+	public SlackNotifier(RestClient.Builder restClientBuilder) {
 		this.restClient = restClientBuilder.build();
 	}
 
-	public void send(String text) {
+	public void send(String webhookUrl, String text) {
 		restClient.post()
-				.uri(properties.getWebhookUrl())
+				.uri(webhookUrl)
 				.contentType(MediaType.APPLICATION_JSON)
 				.body(Map.of("text", text))
 				.retrieve()

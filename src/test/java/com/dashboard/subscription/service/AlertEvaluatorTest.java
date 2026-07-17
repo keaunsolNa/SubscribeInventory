@@ -6,21 +6,22 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.dashboard.subscription.config.AlertProperties;
+import com.dashboard.subscription.domain.AlertThresholds;
 import com.dashboard.subscription.domain.MetricType;
 import com.dashboard.subscription.domain.ProviderStatus;
 import com.dashboard.subscription.domain.ProviderUsage;
 
 class AlertEvaluatorTest {
 
-	private final AlertProperties properties = new AlertProperties();
-	private final AlertEvaluator evaluator = new AlertEvaluator(properties);
+	private static final AlertThresholds DEFAULTS = new AlertThresholds(80.0d, 5.0d, null);
+
+	private final AlertEvaluator evaluator = new AlertEvaluator();
 
 	@Test
 	void quotaAboveThresholdTriggersAlert() {
 		ProviderUsage usage = quota("ElevenLabs", 85.0d, 100.0d);
 
-		List<String> alerts = evaluator.evaluate(List.of(usage));
+		List<String> alerts = evaluator.evaluate(List.of(usage), DEFAULTS);
 
 		assertThat(alerts).hasSize(1);
 		assertThat(alerts.get(0)).contains("ElevenLabs").contains("85");
@@ -30,7 +31,7 @@ class AlertEvaluatorTest {
 	void quotaBelowThresholdStaysSilent() {
 		ProviderUsage usage = quota("ElevenLabs", 50.0d, 100.0d);
 
-		assertThat(evaluator.evaluate(List.of(usage))).isEmpty();
+		assertThat(evaluator.evaluate(List.of(usage), DEFAULTS)).isEmpty();
 	}
 
 	@Test
@@ -44,7 +45,7 @@ class AlertEvaluatorTest {
 				.currency("USD")
 				.build();
 
-		List<String> alerts = evaluator.evaluate(List.of(usage));
+		List<String> alerts = evaluator.evaluate(List.of(usage), DEFAULTS);
 
 		assertThat(alerts).hasSize(1);
 		assertThat(alerts.get(0)).contains("xAI").contains("3.96");
@@ -52,10 +53,10 @@ class AlertEvaluatorTest {
 
 	@Test
 	void costAboveLimitTriggersAlertWhenConfigured() {
-		properties.setCostMaxUsd(10.0d);
 		ProviderUsage usage = cost("OpenAI", 12.34d);
 
-		List<String> alerts = evaluator.evaluate(List.of(usage));
+		List<String> alerts =
+				evaluator.evaluate(List.of(usage), new AlertThresholds(80.0d, 5.0d, 10.0d));
 
 		assertThat(alerts).hasSize(1);
 		assertThat(alerts.get(0)).contains("OpenAI").contains("12.34");
@@ -65,7 +66,7 @@ class AlertEvaluatorTest {
 	void costIgnoredWithoutConfiguredLimit() {
 		ProviderUsage usage = cost("OpenAI", 999.0d);
 
-		assertThat(evaluator.evaluate(List.of(usage))).isEmpty();
+		assertThat(evaluator.evaluate(List.of(usage), DEFAULTS)).isEmpty();
 	}
 
 	@Test
@@ -77,7 +78,7 @@ class AlertEvaluatorTest {
 				.status(ProviderStatus.DISABLED)
 				.build();
 
-		assertThat(evaluator.evaluate(List.of(disabled))).isEmpty();
+		assertThat(evaluator.evaluate(List.of(disabled), DEFAULTS)).isEmpty();
 	}
 
 	private ProviderUsage quota(String name, double used, double limit) {

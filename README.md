@@ -62,15 +62,19 @@ OPENAI_ADMIN_KEY=... ANTHROPIC_ADMIN_KEY=... mvn spring-boot:run
 월 고정 구독료는 `application.yml`의 `dashboard.providers.<id>.monthly-fee`(원화)로 설정하면
 카드에 자동 표시됩니다 (대시보드에서 수동 입력도 가능).
 
-## Slack 알림
+## Slack 알림 (다중 사용자 구독)
 
-`SLACK_WEBHOOK_URL`이 설정되면 `POST /api/alerts/check`(토큰 보호)가 서버 측 키로 사용량을 점검해
-임계값 초과분을 Slack으로 발송합니다. Cloud Scheduler가 이 엔드포인트를 주기 호출합니다.
+각 사용자가 대시보드의 "🔔 Slack 알림 구독" 패널에서 자신의 Webhook URL·임계값을 등록하면,
+Cloud Scheduler가 매시 정각 `POST /api/alerts/check`를 호출해 구독별로 점검·발송합니다.
 
-- 임계값: `dashboard.alerts.quota-warn-percent`(기본 80%), `balance-min-usd`(기본 $5),
-  `cost-max-usd`(환경변수 `DASHBOARD_ALERTS_COST_MAX_USD`, 미설정 시 비활성)
-- 동일 경고 상태는 재발송하지 않음(변화 시에만 발송; 인스턴스 재시작 시 1회 재발송 가능)
-- 알림용 키·웹훅은 **옵트인**: Secret Manager에 저장해 Cloud Run에 주입 (조회 화면의 BYOK와 별개)
+- `POST /api/alerts/subscriptions` — 구독 등록: `{webhookUrl, keys, thresholds}`.
+  **키+웹훅 전체를 AES-256-GCM으로 암호화해 Firestore에 저장** (옵트인, 평문 미보관).
+  Webhook은 `https://hooks.slack.com/` 프리픽스만 허용(SSRF 차단).
+- `DELETE /api/alerts/subscriptions/{id}` — 해지 즉시 삭제
+- 임계값 기본: 사용량 80%, 잔액 $5, 월 사용액 한도는 선택. 동일 경고 상태는 재발송하지 않음
+  (지문을 Firestore에 저장하므로 재시작에도 유지)
+- 활성 조건: `ENCRYPTION_KEY`(base64 32바이트, Secret Manager)와 `GCP_PROJECT_ID` 설정.
+  로컬 등 미설정 환경에서는 구독 API가 503으로 응답
 
 ## 배포 (Cloud Run)
 

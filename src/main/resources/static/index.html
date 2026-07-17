@@ -221,6 +221,28 @@
 			중계만 하며, 서버에는 저장·로깅되지 않습니다. 비워두면 서버에 환경변수로 설정된 키(있다면)를 사용합니다.</div>
 	</details>
 
+	<details class="keys-panel" id="alertPanel">
+		<summary>🔔 Slack 알림 구독 (잔여량 경고)</summary>
+		<div class="keys-grid">
+			<label class="field">Slack Webhook URL
+				<input type="password" id="alertWebhook" placeholder="https://hooks.slack.com/services/..." autocomplete="off"></label>
+			<label class="field">사용량 경고 임계 (%)
+				<input type="number" id="alertQuota" placeholder="80" min="1" max="100"></label>
+			<label class="field">잔액 경고 기준 ($)
+				<input type="number" id="alertBalance" placeholder="5" min="0" step="0.5"></label>
+			<label class="field">월 사용액 한도 ($, 선택)
+				<input type="number" id="alertCost" placeholder="미설정" min="0"></label>
+		</div>
+		<div style="display:flex; gap:8px; align-items:center; margin-top:12px; flex-wrap:wrap;">
+			<button id="alertSubscribeBtn" class="primary">현재 키로 구독</button>
+			<button id="alertUnsubscribeBtn" style="display:none;">구독 해지</button>
+			<span class="muted-note" id="alertStatus"></span>
+		</div>
+		<div class="keys-note">구독하면 위 "내 API 키" 패널의 키와 Webhook URL이 서버에 <b>암호화되어 저장</b>되고(옵트인),
+			매시 정각 서버가 잔여량을 점검해 임계값 초과 시 입력한 Slack 채널로 알립니다.
+			같은 경고 상태는 반복 발송하지 않으며, 해지하면 저장된 정보가 즉시 삭제됩니다.</div>
+	</details>
+
 	<div class="banner" id="banner"><span>⚠︎</span><span id="bannerText"></span></div>
 
 	<div class="summary" id="summary"></div>
@@ -243,7 +265,8 @@
 		timer: null,
 		fees: {},         // providerId -> manual monthly fee override (KRW); config value used otherwise
 		keys: {},         // providerId -> { apiKey, teamId } (BYOK; persisted to this browser only)
-		accessToken: ""   // X-Access-Token for deployments protected by ACCESS_TOKEN
+		accessToken: "",  // X-Access-Token for deployments protected by ACCESS_TOKEN
+		alertSubscriptionId: ""
 	};
 
 	// ---- Browser-local persistence (BYOK keys + fee overrides never leave this device) ----
@@ -260,8 +283,12 @@
 
 	function writeStorage() {
 		try {
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(
-				{ keys: state.keys, fees: state.fees, accessToken: state.accessToken }));
+			localStorage.setItem(STORAGE_KEY, JSON.stringify({
+				keys: state.keys,
+				fees: state.fees,
+				accessToken: state.accessToken,
+				alertSubscriptionId: state.alertSubscriptionId
+			}));
 		} catch (e) {
 			// storage unavailable (private mode etc.) -> keys live for this page only
 		}
@@ -561,10 +588,91 @@
 		root.setAttribute("data-theme", next);
 	});
 
+	// ---- Slack alert subscription ----
+	function authHeaders(extra) {
+		const headers = extra || {};
+		if (state.accessToken) { headers["X-Access-Token"] = state.accessToken; }
+		return headers;
+	}
+
+	function renderAlertPanel() {
+		const subscribed = !!state.alertSubscriptionId;
+		document.getElementById("alertSubscribeBtn").style.display = subscribed ? "none" : "";
+		document.getElementById("alertUnsubscribeBtn").style.display = subscribed ? "" : "none";
+		if (subscribed) {
+			document.getElementById("alertStatus").textContent = "구독 중 (매시 정각 점검)";
+		}
+	}
+
+	function thresholdValue(id) {
+		const raw = document.getElementById(id).value;
+		if (raw === "") { return null; }
+		const parsed = Number(raw);
+		return isNaN(parsed) ? null : parsed;
+	}
+
+	async function subscribeAlerts() {
+		const status = document.getElementById("alertStatus");
+		const payload = keysPayload();
+		if (!payload) { status.textContent = "먼저 '내 API 키' 패널에 키를 입력하세요."; return; }
+		const webhook = document.getElementById("alertWebhook").value.trim();
+		if (webhook.indexOf("https://hooks.slack.com/") !== 0) {
+			status.textContent = "Slack Webhook URL(https://hooks.slack.com/...)을 입력하세요.";
+			return;
+		}
+		status.textContent = "구독 중…";
+		try {
+			const base = state.backendUrl.replace(/\/+$/, "");
+			const res = await fetch(base + "/api/alerts/subscriptions", {
+				method: "POST",
+				headers: authHeaders({ "Content-Type": "application/json" }),
+				body: JSON.stringify({
+					webhookUrl: webhook,
+					keys: payload,
+					thresholds: {
+						quotaWarnPercent: thresholdValue("alertQuota"),
+						balanceMinUsd: thresholdValue("alertBalance"),
+						costMaxUsd: thresholdValue("alertCost")
+					}
+				})
+			});
+			const json = await res.json();
+			if (!res.ok) { throw new Error(json.error || ("HTTP " + res.status)); }
+			state.alertSubscriptionId = json.id;
+			writeStorage();
+			renderAlertPanel();
+		} catch (err) {
+			status.textContent = "구독 실패: " + err.message;
+		}
+	}
+
+	async function unsubscribeAlerts() {
+		const status = document.getElementById("alertStatus");
+		try {
+			const base = state.backendUrl.replace(/\/+$/, "");
+			const res = await fetch(base + "/api/alerts/subscriptions/" + state.alertSubscriptionId, {
+				method: "DELETE",
+				headers: authHeaders({})
+			});
+			if (!res.ok && res.status !== 404) { throw new Error("HTTP " + res.status); }
+			state.alertSubscriptionId = "";
+			writeStorage();
+			renderAlertPanel();
+			status.textContent = "구독이 해지되었습니다.";
+		} catch (err) {
+			status.textContent = "해지 실패: " + err.message;
+		}
+	}
+
+	document.getElementById("alertSubscribeBtn").addEventListener("click", subscribeAlerts);
+	document.getElementById("alertUnsubscribeBtn").addEventListener("click", unsubscribeAlerts);
+
 	// BYOK key inputs: hydrate from browser storage, persist on change.
 	const stored = readStorage();
 	if (stored.keys) { state.keys = stored.keys; }
 	if (stored.fees) { state.fees = stored.fees; }
+	if (stored.alertSubscriptionId) { state.alertSubscriptionId = stored.alertSubscriptionId; }
+	renderAlertPanel();
 	if (stored.accessToken) {
 		state.accessToken = stored.accessToken;
 		document.getElementById("accessToken").value = stored.accessToken;

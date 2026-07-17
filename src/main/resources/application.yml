@@ -11,14 +11,16 @@ spring:
 #   Supply keys via environment variables; never commit real keys.
 #   monthly-fee is the fixed subscription cost in KRW (not a secret); the dashboard
 #   pre-fills each card with it. Omit the line to leave the fee blank.
-# alerts: active only when SLACK_WEBHOOK_URL is set. POST /api/alerts/check (token-protected)
-#   sweeps usage with the server-side keys and posts threshold breaches to Slack.
-#   cost-max-usd is off unless DASHBOARD_ALERTS_COST_MAX_USD is provided.
+# alerts: multi-user subscriptions. Active only when ENCRYPTION_KEY (base64 32-byte AES key)
+#   and GCP_PROJECT_ID (Firestore project) are both set — i.e. on deployments. Users subscribe
+#   from the dashboard (POST /api/alerts/subscriptions); Cloud Scheduler sweeps hourly via
+#   POST /api/alerts/check. Threshold values below are the subscription defaults.
 dashboard:
   security:
     access-token: ${ACCESS_TOKEN:}
   alerts:
-    webhook-url: ${SLACK_WEBHOOK_URL:}
+    encryption-key: ${ENCRYPTION_KEY:}
+    project-id: ${GCP_PROJECT_ID:}
     quota-warn-percent: 80
     balance-min-usd: 5
   providers:

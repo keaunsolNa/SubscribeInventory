@@ -15,12 +15,18 @@ import lombok.Setter;
 @ConfigurationProperties(prefix = "dashboard.alerts")
 public class AlertProperties {
 
-	private String webhookUrl;
 	private double quotaWarnPercent = 80.0d;
 	private double balanceMinUsd = 5.0d;
 	private Double costMaxUsd;
 
-	public boolean isActive() {
-		return StringUtils.hasText(webhookUrl);
+	/** Base64-encoded 32-byte AES key for subscription payloads; blank disables subscriptions. */
+	private String encryptionKey;
+	/** GCP project holding the Firestore subscription store; blank disables subscriptions. */
+	private String projectId;
+	private String firestoreBaseUrl = "https://firestore.googleapis.com";
+
+	/** Alert subscriptions require both the encryption key and a Firestore project. */
+	public boolean isSubscriptionActive() {
+		return StringUtils.hasText(encryptionKey) && StringUtils.hasText(projectId);
 	}
 }
