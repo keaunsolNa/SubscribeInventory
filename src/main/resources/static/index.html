@@ -217,6 +217,14 @@
 				<input type="password" data-key="openai.apiKey" placeholder="sk-admin-..." autocomplete="off"></label>
 			<label class="field">Anthropic Admin Key
 				<input type="password" data-key="anthropic.apiKey" placeholder="sk-ant-admin-..." autocomplete="off"></label>
+			<label class="field">DeepSeek API Key
+				<input type="password" data-key="deepseek.apiKey" placeholder="sk-..." autocomplete="off"></label>
+			<label class="field">OpenRouter API Key
+				<input type="password" data-key="openrouter.apiKey" placeholder="sk-or-..." autocomplete="off"></label>
+			<label class="field">Stability AI API Key
+				<input type="password" data-key="stability.apiKey" placeholder="sk-..." autocomplete="off"></label>
+			<label class="field">fal.ai API Key
+				<input type="password" data-key="fal.apiKey" placeholder="key_id:key_secret" autocomplete="off"></label>
 		</div>
 		<div class="keys-note">키는 이 브라우저(localStorage)에만 저장됩니다. 조회할 때마다 요청에 실려 백엔드가 각 서비스로
 			중계만 하며, 서버에는 저장·로깅되지 않습니다. 비워두면 서버에 환경변수로 설정된 키(있다면)를 사용합니다.</div>
@@ -249,7 +257,12 @@
 
 	<div class="summary" id="summary"></div>
 
-	<div class="section-label">서비스별 현황</div>
+	<div class="section-label" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+		<span>서비스별 현황</span>
+		<label style="display:flex; align-items:center; gap:5px; font-weight:400; text-transform:none; letter-spacing:0; cursor:pointer;">
+			<input type="checkbox" id="showDisabled" style="cursor:pointer;"> 미설정 서비스 표시
+		</label>
+	</div>
 	<div class="grid" id="cards"></div>
 
 	<footer class="note" id="footnote"></footer>
@@ -268,7 +281,8 @@
 		fees: {},         // providerId -> manual monthly fee override (KRW); config value used otherwise
 		keys: {},         // providerId -> { apiKey, teamId } (BYOK; persisted to this browser only)
 		accessToken: "",  // X-Access-Token for deployments protected by ACCESS_TOKEN
-		alertSubscriptionId: ""
+		alertSubscriptionId: "",
+		showDisabled: false
 	};
 
 	// ---- Browser-local persistence (BYOK keys + fee overrides never leave this device) ----
@@ -291,6 +305,7 @@
 				accessToken: state.accessToken,
 				session: { token: auth.token, email: auth.email },
 				alertSubscriptionId: state.alertSubscriptionId,
+				showDisabled: state.showDisabled,
 				alertInputs: {
 					webhook: document.getElementById("alertWebhook").value,
 					quota: document.getElementById("alertQuota").value,
@@ -504,7 +519,21 @@
 		const data = state.data;
 		if (!data) { return; }
 		renderSummary(data);
-		document.getElementById("cards").innerHTML = (data.providers || []).map(renderCard).join("");
+		const providers = data.providers || [];
+		// Cards default to configured-only; the checkbox reveals DISABLED services so users can
+		// discover what else the dashboard supports.
+		const visible = state.showDisabled
+			? providers
+			: providers.filter(function (p) { return p.status !== "DISABLED"; });
+		const hiddenCount = providers.length - visible.length;
+		if (visible.length === 0) {
+			document.getElementById("cards").innerHTML =
+				'<div class="card disabled"><div class="muted-note" style="margin:6px 0;">'
+				+ '표시할 서비스가 없습니다. 위 🔑 패널에 API 키를 입력하거나 '
+				+ '"미설정 서비스 표시"를 켜서 지원 서비스(' + hiddenCount + '개)를 확인하세요.</div></div>';
+		} else {
+			document.getElementById("cards").innerHTML = visible.map(renderCard).join("");
+		}
 
 		document.querySelectorAll('input[data-fee]').forEach(function (input) {
 			input.addEventListener("change", function () {
@@ -791,6 +820,15 @@
 		auth.token = stored.session.token;
 		auth.email = stored.session.email || "";
 	}
+	if (stored.showDisabled) {
+		state.showDisabled = true;
+		document.getElementById("showDisabled").checked = true;
+	}
+	document.getElementById("showDisabled").addEventListener("change", function (e) {
+		state.showDisabled = e.target.checked;
+		writeStorage();
+		render();
+	});
 	if (stored.alertInputs) {
 		document.getElementById("alertWebhook").value = stored.alertInputs.webhook || "";
 		document.getElementById("alertQuota").value = stored.alertInputs.quota || "";

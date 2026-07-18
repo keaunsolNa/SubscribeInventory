@@ -53,3 +53,19 @@ dashboard:
       base-url: https://api.anthropic.com
       api-key: ${ANTHROPIC_ADMIN_KEY:}
       # monthly-fee: 0
+    deepseek:
+      enabled: true
+      base-url: https://api.deepseek.com
+      api-key: ${DEEPSEEK_API_KEY:}
+    openrouter:
+      enabled: true
+      base-url: https://openrouter.ai
+      api-key: ${OPENROUTER_API_KEY:}
+    stability:
+      enabled: true
+      base-url: https://api.stability.ai
+      api-key: ${STABILITY_API_KEY:}
+    fal:
+      enabled: true
+      base-url: https://api.fal.ai
+      api-key: ${FAL_API_KEY:}

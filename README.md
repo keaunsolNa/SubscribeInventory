@@ -25,8 +25,16 @@
 | OpenAI | `GET /v1/organization/costs` (**Admin 키**, `api.usage.read` 스코프 필수) | `COST` | 월초부터 누적 지출. 잔여 잔액 API는 공식 미제공 |
 | Anthropic | `GET /v1/organizations/cost_report` (헤더 `x-api-key` Admin) | `COST` | 월초부터 누적 지출 (후불제) |
 
+| DeepSeek | `GET /user/balance` (Bearer) | `BALANCE` | 선불 잔액 (`balance_infos[0].total_balance`, 문자열) |
+| OpenRouter | `GET /api/v1/credits` (Bearer) | `BALANCE` | 크레딧: `total_credits` − `total_usage` |
+| Stability AI | `GET /v1/user/balance` (Bearer) | `BALANCE` | 크레딧 잔액 (`credits`, USD 아님) |
+| fal.ai | `GET /v1/account/billing?expand=credits` (`Key` 스킴) | `BALANCE` | 크레딧 잔액 |
+
 > xAI의 `prepaid/balance` 엔드포인트는 충전 원장만 기록해 사용분이 반영되지 않으므로 쓰지 않습니다.
 > OpenAI·Anthropic은 "잔여량" API가 없어 "이번 달 사용액"만 표시합니다.
+> DeepSeek·OpenRouter·Stability·fal은 공식 문서 기반 구현이며 실키 검증 대기 상태입니다.
+> Gemini·Groq·Perplexity·Mistral 등은 사용량/잔액 조회 공개 API가 없어 추가 불가(2026-07 기준).
+> 대시보드 카드는 **키가 설정된 서비스만 기본 표시**되며, "미설정 서비스 표시"로 전체를 볼 수 있습니다.
 
 ## 엔드포인트
 
