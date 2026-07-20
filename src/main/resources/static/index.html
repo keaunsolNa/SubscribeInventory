@@ -425,6 +425,14 @@
 			if (sev === "critical") { return '<span class="badge critical"><span class="bdot"></span>잔여 부족</span>'; }
 			if (sev === "warning") { return '<span class="badge warning"><span class="bdot"></span>주의</span>'; }
 		}
+		// Mirror the Slack subscription's balance rule so the card agrees with what alerts fire on.
+		// The threshold lives in the alert panel input (persisted in localStorage); empty = no check.
+		if (provider.metricType === "BALANCE" && provider.remaining != null) {
+			const minUsd = thresholdValue("alertBalance");
+			if (minUsd != null && provider.remaining <= minUsd) {
+				return '<span class="badge critical"><span class="bdot"></span>잔여 부족</span>';
+			}
+		}
 		return '<span class="badge ok"><span class="bdot"></span>정상</span>';
 	}
 
@@ -850,6 +858,8 @@
 	["alertWebhook", "alertQuota", "alertBalance", "alertCost"].forEach(function (id) {
 		document.getElementById(id).addEventListener("change", writeStorage);
 	});
+	// Card badges read the balance threshold, so editing it should repaint them right away.
+	document.getElementById("alertBalance").addEventListener("change", render);
 	renderAlertPanel();
 	if (stored.accessToken) {
 		state.accessToken = stored.accessToken;
