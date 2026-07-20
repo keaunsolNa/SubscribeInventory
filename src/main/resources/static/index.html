@@ -110,6 +110,9 @@
 	.tile .k { font-size: 12.5px; color: var(--text-muted); margin-bottom: 8px; }
 	.tile .v { font-size: 27px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 	.tile .sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+	.tile .v-rows { display: flex; flex-direction: column; gap: 3px; }
+	.tile .v-row { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+	.tile .v-row .n { color: var(--text-secondary); font-weight: 500; }
 
 	.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
 	.card {
@@ -223,7 +226,7 @@
 				<input type="password" data-key="openrouter.apiKey" placeholder="sk-or-..." autocomplete="off"></label>
 			<label class="field">Stability AI API Key
 				<input type="password" data-key="stability.apiKey" placeholder="sk-..." autocomplete="off"></label>
-			<label class="field">fal.ai API Key
+			<label class="field">fal.ai Admin Key (ADMIN 스코프로 발급)
 				<input type="password" data-key="fal.apiKey" placeholder="key_id:key_secret" autocomplete="off"></label>
 		</div>
 		<div class="keys-note">키는 이 브라우저(localStorage)에만 저장됩니다. 조회할 때마다 요청에 실려 백엔드가 각 서비스로
@@ -489,28 +492,37 @@
 		const providers = data.providers || [];
 		let totalCost = 0;
 		let hasCost = false;
-		let balance = 0;
-		let hasBalance = false;
+		const balances = [];
 		let active = 0;
 		let totalFee = 0;
 
 		providers.forEach(function (p) {
 			if (p.status === "OK") { active += 1; }
 			if (p.metricType === "COST" && p.cost != null) { totalCost += p.cost; hasCost = true; }
-			if (p.metricType === "BALANCE" && p.remaining != null) { balance += p.remaining; hasBalance = true; }
+			if (p.metricType === "BALANCE" && p.remaining != null) { balances.push(p); }
 			const fee = effectiveFee(p);
 			if (typeof fee === "number" && !isNaN(fee)) { totalFee += fee; }
 		});
 
+		// Prepaid balances are per-provider pools that cannot be spent interchangeably, so the
+		// tile lists each provider instead of a single (misleading) grand total.
+		const balanceHtml = balances.length === 0
+			? '<div class="v">—</div>'
+			: '<div class="v-rows">' + balances.map(function (p) {
+				return '<div class="v-row"><span class="n">' + escapeHtml(p.displayName) + '</span>'
+					+ '<span>' + money(p.remaining, p.currency) + '</span></div>';
+			}).join('') + '</div>';
+
 		const tiles = [
 			{ k: "이번 달 사용액 (누적)", v: hasCost ? money(totalCost, "USD") : "—", sub: "OpenAI + Anthropic" },
-			{ k: "잔여 선불 크레딧", v: hasBalance ? money(balance, "USD") : "—", sub: "xAI 등 선불" },
+			{ k: "잔여 선불 크레딧", html: balanceHtml, sub: "선불형 서비스별 잔액" },
 			{ k: "월 고정 구독료 합계", v: totalFee > 0 ? "₩" + numFmt.format(totalFee) : "—", sub: "백엔드 설정 + 수동 입력" },
 			{ k: "활성 서비스", v: active + " / " + providers.length, sub: "키 설정 완료 기준" }
 		];
 
 		document.getElementById("summary").innerHTML = tiles.map(function (t) {
-			return '<div class="tile"><div class="k">' + t.k + '</div><div class="v">' + t.v + '</div><div class="sub">' + t.sub + '</div></div>';
+			const body = t.html != null ? t.html : '<div class="v">' + t.v + '</div>';
+			return '<div class="tile"><div class="k">' + t.k + '</div>' + body + '<div class="sub">' + t.sub + '</div></div>';
 		}).join("");
 	}
 
