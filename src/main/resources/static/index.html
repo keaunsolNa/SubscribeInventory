@@ -180,18 +180,18 @@
 	</header>
 
 	<div class="config">
-		<label class="field grow">
+		<label class="field grow" id="backendField">
 			백엔드 API 주소 (비우면 데모 모드)
 			<input type="text" id="backendUrl" placeholder="https://your-backend.example.com" autocomplete="off">
 		</label>
-		<label class="field">
+		<label class="field" id="modeField">
 			모드
 			<select id="modeSel">
 				<option value="demo">데모 (샘플)</option>
 				<option value="live">실시간 (백엔드)</option>
 			</select>
 		</label>
-		<label class="field">
+		<label class="field" id="autoField">
 			자동 새로고침
 			<select id="autoSel">
 				<option value="0">끔</option>
@@ -890,6 +890,11 @@
 		state.mode = "live";
 		document.getElementById("backendUrl").value = location.origin;
 		document.getElementById("modeSel").value = "live";
+		// Same-origin is fixed here, so the dev-only controls (URL, mode, auto refresh) would
+		// only invite misconfiguration; file:// keeps them for local preview against any backend.
+		["backendField", "modeField", "autoField"].forEach(function (id) {
+			document.getElementById(id).style.display = "none";
+		});
 	}
 
 	initAuth();
