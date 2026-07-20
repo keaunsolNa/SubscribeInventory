@@ -1,0 +1,21 @@
+# SubscribeInventory
+
+> AI 구독형 서비스의 잔여 크레딧·할당량·이번 달 사용액을 한 화면에서 확인하고, Slack으로 잔여량
+> 경고를 받는 무료 웹 대시보드. https://subscribeinventory.web.app/
+
+## 핵심 기능
+
+- 8개 AI 서비스 통합 조회: ElevenLabs, xAI(Grok), OpenAI, Anthropic(Claude), DeepSeek,
+  OpenRouter, Stability AI, fal.ai
+- BYOK(Bring Your Own Key): API 키는 사용자 브라우저의 localStorage에만 저장되며, 서버는 조회
+  요청을 각 서비스로 중계만 하고 키를 저장·로깅하지 않음
+- Slack 잔여량 알림: Incoming Webhook과 임계값을 등록하면 매시 정각 자동 점검 후 경고 발송
+  (구독 정보는 AES-256-GCM으로 암호화 저장)
+- Google 계정 로그인, 다크·라이트 테마, 무료
+
+## 페이지
+
+- [대시보드](https://subscribeinventory.web.app/): 로그인 후 API 키를 등록하면 서비스별 잔여
+  크레딧·사용액 카드와 요약 타일이 표시됨
+- [개인정보 및 데이터 처리 안내](https://subscribeinventory.web.app/privacy.html): 처리 항목,
+  보관·삭제, 위탁, 이용자 권리, 문의처
