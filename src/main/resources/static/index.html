@@ -90,6 +90,10 @@
 		border-radius: 8px; padding: 7px 11px; white-space: nowrap;
 	}
 	.gsi-overlay { position: absolute; inset: 0; opacity: 0; overflow: hidden; }
+	/* Cross-origin iframes keep their full hit area even when visually clipped, so the iframe
+	   (and the wrapper divs GIS puts around it) must be forced to the overlay's size, or the
+	   invisible button swallows clicks on neighboring header buttons. */
+	.gsi-overlay div, .gsi-overlay iframe { width: 100% !important; height: 100% !important; }
 
 	button, select, input {
 		font-family: inherit; font-size: 13.5px; color: var(--text-primary);
