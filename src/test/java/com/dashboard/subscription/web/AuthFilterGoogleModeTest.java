@@ -21,6 +21,7 @@ import com.dashboard.subscription.config.WebConfig;
 import com.dashboard.subscription.domain.AuthUser;
 import com.dashboard.subscription.service.AlertSubscriptionService;
 import com.dashboard.subscription.service.CachedUsageService;
+import com.dashboard.subscription.service.UsageHistoryStore;
 import com.dashboard.subscription.service.JwtService;
 import com.dashboard.subscription.service.SweepResult;
 
@@ -43,6 +44,9 @@ class AuthFilterGoogleModeTest {
 
 	@MockBean
 	private CachedUsageService cachedUsageService;
+
+	@MockBean
+	private UsageHistoryStore usageHistoryStore;
 
 	@MockBean
 	private AlertSubscriptionService alertSubscriptionService;

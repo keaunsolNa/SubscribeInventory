@@ -25,6 +25,7 @@ import com.dashboard.subscription.domain.ProviderStatus;
 import com.dashboard.subscription.domain.ProviderUsage;
 import com.dashboard.subscription.service.CachedUsageService;
 import com.dashboard.subscription.service.JwtService;
+import com.dashboard.subscription.service.UsageHistoryStore;
 
 @WebMvcTest(UsageController.class)
 @EnableConfigurationProperties(AuthProperties.class)
@@ -38,6 +39,9 @@ class UsageControllerTest {
 
 	@MockBean
 	private JwtService jwtService;
+
+	@MockBean
+	private UsageHistoryStore usageHistoryStore;
 
 	@Test
 	void usageEndpointReturnsAggregatedSnapshots() throws Exception {
@@ -77,6 +81,23 @@ class UsageControllerTest {
 						.content("{\"keys\":{\"xai\":{\"apiKey\":\"byok-key\",\"teamId\":\"team_byok\"}}}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.generatedAt").value("2026-07-15T09:00:00Z"));
+	}
+
+	@Test
+	void historyEndpointReturnsPointsForFingerprint() throws Exception {
+		when(usageHistoryStore.recent(org.mockito.ArgumentMatchers.anyString(),
+				org.mockito.ArgumentMatchers.eq(7)))
+				.thenReturn(List.of(new UsageHistoryStore.HistoryPoint(
+						Instant.parse("2026-07-20T13:00:00Z"),
+						List.of(new UsageHistoryStore.ProviderPoint("xai", 2.8d, null)))));
+
+		mockMvc.perform(post("/api/usage/history")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"keys\":{\"xai\":{\"apiKey\":\"byok-key\"}}}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].timestamp").value("2026-07-20T13:00:00Z"))
+				.andExpect(jsonPath("$[0].entries[0].providerId").value("xai"))
+				.andExpect(jsonPath("$[0].entries[0].remaining").value(2.8d));
 	}
 
 	@Test

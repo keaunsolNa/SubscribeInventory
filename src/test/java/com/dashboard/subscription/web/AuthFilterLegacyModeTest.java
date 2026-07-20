@@ -17,6 +17,7 @@ import com.dashboard.subscription.config.AuthProperties;
 import com.dashboard.subscription.config.WebConfig;
 import com.dashboard.subscription.service.CachedUsageService;
 import com.dashboard.subscription.service.JwtService;
+import com.dashboard.subscription.service.UsageHistoryStore;
 
 /**
  * Auth behavior when only the shared ACCESS_TOKEN is configured (no Google login).
@@ -32,6 +33,9 @@ class AuthFilterLegacyModeTest {
 
 	@MockBean
 	private CachedUsageService cachedUsageService;
+
+	@MockBean
+	private UsageHistoryStore usageHistoryStore;
 
 	@MockBean
 	private JwtService jwtService;

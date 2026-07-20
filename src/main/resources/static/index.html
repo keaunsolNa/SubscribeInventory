@@ -14,7 +14,13 @@
 <meta property="og:description" content="8개 AI 서비스의 잔여 크레딧·할당량·월 사용액을 한눈에. BYOK(키는 브라우저에만 저장) + Slack 잔여량 알림, 무료.">
 <meta property="og:url" content="https://subscribeinventory.web.app/">
 <meta property="og:locale" content="ko_KR">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://subscribeinventory.web.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://subscribeinventory.web.app/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script type="application/ld+json">
 {
 	"@context": "https://schema.org",
@@ -236,6 +242,9 @@
 	.keys-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
 	.keys-grid input { width: 100%; }
 	.keys-note { font-size: 12px; color: var(--text-muted); margin-top: 10px; line-height: 1.6; }
+	.spark-wrap { margin-top: 10px; }
+	.spark { display: block; width: 100%; height: 28px; }
+	.spark-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 	.faq-item h3 { font-size: 13.5px; margin: 14px 0 4px; }
 	.faq-item p { margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
 
@@ -396,7 +405,8 @@
 		keys: {},         // providerId -> { apiKey, teamId } (BYOK; persisted to this browser only)
 		accessToken: "",  // X-Access-Token for deployments protected by ACCESS_TOKEN
 		alertSubscriptionId: "",
-		showDisabled: false
+		showDisabled: false,
+		history: {}      // providerId -> [{t, r, c}] hourly points (server-side, last 7 days)
 	};
 
 	// ---- Browser-local persistence (BYOK keys + fee overrides never leave this device) ----
@@ -553,6 +563,56 @@
 		});
 	}
 
+	// ---- Trend sparkline + burn-rate estimate ----
+	function sparklineSvg(points) {
+		const values = points.map(function (p) { return p.v; });
+		const min = Math.min.apply(null, values);
+		const max = Math.max.apply(null, values);
+		const span = (max - min) || 1;
+		const t0 = points[0].t;
+		const tSpan = (points[points.length - 1].t - t0) || 1;
+		const coords = points.map(function (p) {
+			const x = ((p.t - t0) / tSpan) * 100;
+			const y = 26 - ((p.v - min) / span) * 22;
+			return x.toFixed(1) + "," + y.toFixed(1);
+		}).join(" ");
+		return '<svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">'
+			+ '<polyline points="' + coords + '" fill="none" stroke="var(--series-1)"'
+			+ ' stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>';
+	}
+
+	// Linear burn over the last ~72h of balance points; silent unless the balance is shrinking.
+	function burnNote(providerId, current) {
+		const series = (state.history[providerId] || []).filter(function (p) { return p.r != null; });
+		if (series.length < 2 || current == null) { return ""; }
+		const recent = series.filter(function (p) { return p.t >= Date.now() - 72 * 3600000; });
+		const points = recent.length >= 2 ? recent : series;
+		const first = points[0];
+		const last = points[points.length - 1];
+		const hours = (last.t - first.t) / 3600000;
+		if (hours <= 0) { return ""; }
+		const burnPerDay = ((first.r - last.r) / hours) * 24;
+		if (burnPerDay <= 0.0001) { return ""; }
+		const days = current / burnPerDay;
+		const label = days < 1 ? "1일 미만" : "약 " + Math.round(days) + "일";
+		return '<div class="muted-note">이 속도면 ' + label + ' 후 소진 예상</div>';
+	}
+
+	function historyBlock(provider) {
+		const series = state.history[provider.providerId] || [];
+		const metric = provider.metricType === "COST" ? "c" : "r";
+		const points = series
+			.filter(function (p) { return p[metric] != null; })
+			.map(function (p) { return { t: p.t, v: p[metric] }; });
+		if (points.length < 2) { return ""; }
+		let html = '<div class="spark-wrap">' + sparklineSvg(points)
+			+ '<div class="spark-label">최근 7일 추이</div></div>';
+		if (provider.metricType === "BALANCE") {
+			html += burnNote(provider.providerId, provider.remaining);
+		}
+		return html;
+	}
+
 	// ---- Card renderer ----
 	function renderCard(provider) {
 		const disabled = provider.status === "DISABLED";
@@ -594,6 +654,9 @@
 				'<div class="hero-label">이번 달 사용액 (누적)</div>'
 				+ '<div class="hero">' + money(provider.cost, provider.currency) + '</div>'
 				+ '<div class="muted-note" style="margin-top:8px;">잔여량 API 미제공 → 월초부터 누적 지출</div>';
+		}
+		if (!disabled && !error) {
+			bodyHtml += historyBlock(provider);
 		}
 
 		return ''
@@ -733,10 +796,42 @@
 			state.data = json;
 			setStatus("live", "실시간 · " + fmtDateTime(json.generatedAt));
 			render();
+			loadHistory();
 		} catch (err) {
 			setStatus("err", "연결 실패");
 			showBanner("백엔드 연결에 실패했습니다 (" + err.message + "). 주소·CORS·서버 상태를 확인하세요. 아래는 마지막 표시본입니다.");
 			if (!state.data) { state.data = demoData(); render(); }
+		}
+	}
+
+	// Hourly history for trend sparklines; purely decorative, so failures stay silent.
+	async function loadHistory() {
+		if (state.mode === "demo" || !state.backendUrl) { return; }
+		try {
+			const headers = authHeaders({ "Content-Type": "application/json", "Accept": "application/json" });
+			const payload = keysPayload();
+			const res = await fetch(baseUrl() + "/api/usage/history", {
+				method: "POST",
+				headers: headers,
+				body: JSON.stringify(payload ? { keys: payload } : {})
+			});
+			if (!res.ok) { return; }
+			const points = await res.json();
+			const series = {};
+			points.forEach(function (point) {
+				const t = new Date(point.timestamp).getTime();
+				(point.entries || []).forEach(function (entry) {
+					if (!series[entry.providerId]) { series[entry.providerId] = []; }
+					series[entry.providerId].push({ t: t, r: entry.remaining, c: entry.cost });
+				});
+			});
+			Object.keys(series).forEach(function (id) {
+				series[id].sort(function (a, b) { return a.t - b.t; });
+			});
+			state.history = series;
+			render();
+		} catch (err) {
+			// leave cards without sparklines
 		}
 	}
 

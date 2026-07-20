@@ -1,6 +1,8 @@
 package com.dashboard.subscription.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -24,7 +26,9 @@ class CachedUsageServiceTest {
 
 	private final MutableClock clock = new MutableClock(START);
 	private final UsageAggregator usageAggregator = mock(UsageAggregator.class);
-	private final CachedUsageService service = new CachedUsageService(usageAggregator, clock);
+	private final UsageHistoryStore usageHistoryStore = mock(UsageHistoryStore.class);
+	private final CachedUsageService service =
+			new CachedUsageService(usageAggregator, usageHistoryStore, clock);
 
 	@Test
 	void reusesCachedResponseWithinTtl() {
@@ -67,6 +71,20 @@ class CachedUsageServiceTest {
 
 		verify(usageAggregator, times(1)).collect(first);
 		verify(usageAggregator, times(1)).collect(second);
+	}
+
+	@Test
+	void recordsHistoryOncePerHourPerFingerprint() {
+		Map<String, ApiCredentials> credentials = Map.of("xai", new ApiCredentials("key", null));
+		when(usageAggregator.collect(credentials)).thenReturn(response(), response(), response());
+
+		service.collect(credentials);
+		clock.advance(Duration.ofSeconds(61));
+		service.collect(credentials);
+		clock.advance(Duration.ofMinutes(61));
+		service.collect(credentials);
+
+		verify(usageHistoryStore, times(2)).record(anyString(), any(DashboardResponse.class));
 	}
 
 	private DashboardResponse response() {

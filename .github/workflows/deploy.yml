@@ -1,0 +1,39 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: mvn -B test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Keyless auth: GitHub's OIDC token is exchanged for the deployer service account
+      # via Workload Identity Federation — no JSON key is stored in the repository.
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/343814554250/locations/global/workloadIdentityPools/github/providers/github-provider
+          service_account: github-deployer@subscribeinventory.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v2
+      # --source deploys via Cloud Build; unspecified env vars/secrets carry over from
+      # the previous revision, so ENCRYPTION_KEY & co. stay intact.
+      - run: >
+          gcloud run deploy subscribe-inventory --source .
+          --region asia-northeast3 --project subscribeinventory --quiet
