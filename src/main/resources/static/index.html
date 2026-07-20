@@ -99,7 +99,7 @@
 	}
 	.config .grow { flex: 1 1 260px; }
 	.config input[type="text"] { width: 100%; }
-	.status-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); margin-left: auto; }
+	.status-line { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); margin-left: 10px; vertical-align: middle; }
 	.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-muted); flex: none; }
 	.dot.live { background: var(--good); }
 	.dot.demo { background: var(--series-1); }
@@ -170,7 +170,8 @@
 	<header class="top">
 		<div class="title">
 			<h1>구독 서비스 대시보드</h1>
-			<p>AI 구독형 서비스의 잔여 할당량 · 크레딧 · 이번 달 사용액을 한눈에</p>
+			<p>AI 구독형 서비스의 잔여 할당량 · 크레딧 · 이번 달 사용액을 한눈에
+				<span class="status-line"><span class="dot" id="statDot"></span><span id="statText">준비됨</span></span></p>
 		</div>
 		<div class="top-actions">
 			<div id="authArea" style="display:none; align-items:center; gap:8px;"></div>
@@ -179,7 +180,7 @@
 		</div>
 	</header>
 
-	<div class="config">
+	<div class="config" id="configBox">
 		<label class="field grow" id="backendField">
 			백엔드 API 주소 (비우면 데모 모드)
 			<input type="text" id="backendUrl" placeholder="https://your-backend.example.com" autocomplete="off">
@@ -204,7 +205,6 @@
 			접근 토큰 (서버에 설정된 경우)
 			<input type="password" id="accessToken" placeholder="ACCESS_TOKEN" autocomplete="off">
 		</label>
-		<div class="status-line"><span class="dot" id="statDot"></span><span id="statText">준비됨</span></div>
 	</div>
 
 	<details class="keys-panel" id="keysPanel">
@@ -753,7 +753,17 @@
 			renderAuthArea();
 			loadGoogleSignIn();
 		}
+		updateConfigBox();
 		load();
+	}
+
+	// The config box only exists for its fields; once auth mode and serving mode have hidden
+	// them all (the usual production case) the empty box should go away too.
+	function updateConfigBox() {
+		const box = document.getElementById("configBox");
+		const anyVisible = Array.prototype.some.call(box.querySelectorAll(".field"),
+			function (field) { return field.style.display !== "none"; });
+		box.style.display = anyVisible ? "" : "none";
 	}
 
 	// ---- Slack alert subscription ----
