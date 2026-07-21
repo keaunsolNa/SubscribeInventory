@@ -20,10 +20,13 @@ import com.dashboard.subscription.domain.AuthUser;
 import com.dashboard.subscription.service.GoogleTokenVerifier;
 import com.dashboard.subscription.service.JwtService;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Google-login endpoints: config discovery for the dashboard, ID-token exchange for a session
  * JWT, and the current-user probe.
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -62,6 +65,8 @@ public class AuthController {
 			throw new IllegalStateException("Google login is not configured on this deployment");
 		}
 		AuthUser user = googleTokenVerifier.verify(request.idToken());
+		// Operational metric: unique emails here = signed-in account count (log-based, 30d window).
+		log.info("Google login: email={}", user.email());
 		return Map.of("token", jwtService.issue(user), "email", user.email());
 	}
 

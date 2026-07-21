@@ -15,9 +15,13 @@ import com.dashboard.subscription.service.CredentialFingerprint;
 import com.dashboard.subscription.service.UsageHistoryStore;
 import com.dashboard.subscription.service.UsageHistoryStore.HistoryPoint;
 
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Read-only dashboard endpoints.
  */
+@Slf4j
 @RestController
 @RequestMapping("/api")
 public class UsageController {
@@ -34,7 +38,8 @@ public class UsageController {
 	}
 
 	@GetMapping("/usage")
-	public DashboardResponse usage() {
+	public DashboardResponse usage(HttpServletRequest request) {
+		logTraffic(request, false);
 		return cachedUsageService.collect(Map.of());
 	}
 
@@ -43,11 +48,20 @@ public class UsageController {
 	 * for this request only and never stored or logged.
 	 */
 	@PostMapping("/usage")
-	public DashboardResponse usageWithCredentials(@RequestBody(required = false) UsageRequest request) {
-		if (request == null || request.keys() == null) {
-			return cachedUsageService.collect(Map.of());
-		}
-		return cachedUsageService.collect(request.keys());
+	public DashboardResponse usageWithCredentials(@RequestBody(required = false) UsageRequest request,
+			HttpServletRequest httpRequest) {
+		boolean byok = request != null && request.keys() != null;
+		logTraffic(httpRequest, byok);
+		return cachedUsageService.collect(byok ? request.keys() : Map.of());
+	}
+
+	/**
+	 * Operational traffic metric. ForwardedHeaderFilter has already resolved the real client
+	 * address behind the Firebase Hosting / Cloud Run proxy chain, so log-based counters can
+	 * exclude the operator's own IP. Only the IP is logged — never keys.
+	 */
+	private void logTraffic(HttpServletRequest request, boolean byok) {
+		log.info("Usage query: ip={} byok={}", request.getRemoteAddr(), byok);
 	}
 
 	/**
