@@ -97,7 +97,7 @@ public class AuthFilter extends OncePerRequestFilter {
 		if ("/api/alerts/check".equals(uri)) {
 			return accessToken.equals(request.getHeader(TOKEN_HEADER));
 		}
-		if ("/api/budget/notify".equals(uri)) {
+		if (uri.startsWith("/api/budget/")) {
 			return accessToken.equals(request.getParameter("token"));
 		}
 		return false;

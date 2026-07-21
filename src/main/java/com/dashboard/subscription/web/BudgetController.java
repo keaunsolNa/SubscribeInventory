@@ -30,4 +30,11 @@ public class BudgetController {
 		budgetAlertService.handle(envelope);
 		return Map.of("status", "ok");
 	}
+
+	/** Cloud Scheduler target: weekly spend digest to Slack (Monday mornings, KST). */
+	@PostMapping("/report")
+	public Map<String, String> report() {
+		budgetAlertService.sendWeeklyReport();
+		return Map.of("status", "ok");
+	}
 }

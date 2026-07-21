@@ -10,6 +10,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.Optional;
 
@@ -26,8 +29,8 @@ class BudgetAlertServiceTest {
 	private final AlertProperties properties = new AlertProperties();
 	private final SlackNotifier slackNotifier = mock(SlackNotifier.class);
 	private final BudgetStateStore stateStore = mock(BudgetStateStore.class);
-	private final BudgetAlertService service =
-			new BudgetAlertService(properties, slackNotifier, stateStore);
+	private final BudgetAlertService service = new BudgetAlertService(properties, slackNotifier,
+			stateStore, Clock.fixed(Instant.parse("2026-07-21T13:00:00Z"), ZoneOffset.UTC));
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	private JsonNode envelope(String budgetJson) {
@@ -51,7 +54,32 @@ class BudgetAlertServiceTest {
 	void ignoresRoutineSpendUpdatesWithoutThreshold() {
 		activeStore(Optional.empty());
 
-		service.handle(envelope("{\"costAmount\":1200.0,\"budgetAmount\":10000.0}"));
+		service.handle(envelope("{\"costAmount\":1200.0,\"budgetAmount\":10000.0,"
+				+ "\"currencyCode\":\"KRW\"}"));
+
+		verify(slackNotifier, never()).send(anyString(), anyString());
+		verify(stateStore).saveLatest(new BudgetStateStore.LatestSpend(
+				1200.0, 10000.0, "KRW", "2026-07-21T13:00:00Z"));
+	}
+
+	@Test
+	void weeklyReportSendsLatestSpend() {
+		properties.setBudgetSlackWebhook(WEBHOOK);
+		when(stateStore.readLatest()).thenReturn(Optional.of(
+				new BudgetStateStore.LatestSpend(150.0, 10000.0, "KRW", "2026-07-21T13:00:00Z")));
+
+		service.sendWeeklyReport();
+
+		verify(slackNotifier).send(eq(WEBHOOK), contains("주간 GCP 사용액 리포트"));
+		verify(slackNotifier).send(eq(WEBHOOK), contains("1.5%"));
+	}
+
+	@Test
+	void weeklyReportStaysSilentWithoutSnapshot() {
+		properties.setBudgetSlackWebhook(WEBHOOK);
+		when(stateStore.readLatest()).thenReturn(Optional.empty());
+
+		service.sendWeeklyReport();
 
 		verify(slackNotifier, never()).send(anyString(), anyString());
 	}

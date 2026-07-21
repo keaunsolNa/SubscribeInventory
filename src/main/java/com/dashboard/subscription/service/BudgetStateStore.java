@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 public class BudgetStateStore {
 
 	private static final String DOCUMENT = "budgetState/current";
+	private static final String LATEST_DOCUMENT = "budgetState/latest";
 
 	private final AlertProperties properties;
 	private final GcpTokenProvider tokenProvider;
@@ -39,6 +40,9 @@ public class BudgetStateStore {
 	}
 
 	public record State(String intervalStart, int notifiedPercent) {
+	}
+
+	public record LatestSpend(double cost, double budget, String currency, String updatedAt) {
 	}
 
 	public boolean isActive() {
@@ -81,8 +85,53 @@ public class BudgetStateStore {
 		}
 	}
 
+	/** Every budget push refreshes this snapshot so the weekly report has current numbers. */
+	public void saveLatest(LatestSpend spend) {
+		try {
+			ObjectNode document = objectMapper.createObjectNode();
+			ObjectNode fields = document.putObject("fields");
+			fields.putObject("cost").put("doubleValue", spend.cost());
+			fields.putObject("budget").put("doubleValue", spend.budget());
+			fields.putObject("currency").put("stringValue", spend.currency());
+			fields.putObject("updatedAt").put("stringValue", spend.updatedAt());
+
+			restClient.patch()
+					.uri(latestDocumentUrl())
+					.header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenProvider.accessToken())
+					.contentType(MediaType.APPLICATION_JSON)
+					.body(document.toString())
+					.retrieve()
+					.toBodilessEntity();
+		} catch (Exception exception) {
+			log.warn("Latest spend write failed: {}", exception.toString());
+		}
+	}
+
+	public Optional<LatestSpend> readLatest() {
+		try {
+			JsonNode document = restClient.get()
+					.uri(latestDocumentUrl())
+					.header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenProvider.accessToken())
+					.retrieve()
+					.body(JsonNode.class);
+			JsonNode fields = document.path("fields");
+			return Optional.of(new LatestSpend(
+					fields.path("cost").path("doubleValue").asDouble(),
+					fields.path("budget").path("doubleValue").asDouble(),
+					fields.path("currency").path("stringValue").asText("KRW"),
+					fields.path("updatedAt").path("stringValue").asText("")));
+		} catch (Exception exception) {
+			return Optional.empty();
+		}
+	}
+
 	private String documentUrl() {
 		return properties.getFirestoreBaseUrl() + "/v1/projects/" + properties.getProjectId()
 				+ "/databases/(default)/documents/" + DOCUMENT;
+	}
+
+	private String latestDocumentUrl() {
+		return properties.getFirestoreBaseUrl() + "/v1/projects/" + properties.getProjectId()
+				+ "/databases/(default)/documents/" + LATEST_DOCUMENT;
 	}
 }

@@ -1,5 +1,6 @@
 package com.dashboard.subscription.service;
 
+import java.time.Clock;
 import java.util.Base64;
 import java.util.Optional;
 
@@ -27,13 +28,15 @@ public class BudgetAlertService {
 	private final AlertProperties properties;
 	private final SlackNotifier slackNotifier;
 	private final BudgetStateStore stateStore;
+	private final Clock clock;
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	public BudgetAlertService(AlertProperties properties, SlackNotifier slackNotifier,
-			BudgetStateStore stateStore) {
+			BudgetStateStore stateStore, Clock clock) {
 		this.properties = properties;
 		this.slackNotifier = slackNotifier;
 		this.stateStore = stateStore;
+		this.clock = clock;
 	}
 
 	/** Handles one Pub/Sub push envelope; never throws so pushes are always acked. */
@@ -44,6 +47,13 @@ public class BudgetAlertService {
 				return;
 			}
 			JsonNode budget = objectMapper.readTree(Base64.getDecoder().decode(data));
+			if (stateStore.isActive()) {
+				stateStore.saveLatest(new BudgetStateStore.LatestSpend(
+						budget.path("costAmount").asDouble(),
+						budget.path("budgetAmount").asDouble(),
+						budget.path("currencyCode").asText("KRW"),
+						clock.instant().toString()));
+			}
 			JsonNode exceeded = budget.path("alertThresholdExceeded");
 			if (exceeded.isMissingNode() || exceeded.isNull()) {
 				return;
@@ -69,6 +79,26 @@ public class BudgetAlertService {
 			// Ack anyway: a malformed or transiently failing message must not retry forever.
 			log.warn("Budget notification handling failed: {}", exception.toString());
 		}
+	}
+
+	/** Weekly spend digest (Cloud Scheduler, Monday mornings); silent without data or webhook. */
+	public void sendWeeklyReport() {
+		String webhook = properties.getBudgetSlackWebhook();
+		if (!StringUtils.hasText(webhook) || !webhook.startsWith(WEBHOOK_PREFIX)) {
+			log.info("Weekly budget report skipped: no Slack webhook configured");
+			return;
+		}
+		Optional<BudgetStateStore.LatestSpend> latest = stateStore.readLatest();
+		if (latest.isEmpty()) {
+			log.info("Weekly budget report skipped: no spend snapshot yet");
+			return;
+		}
+		BudgetStateStore.LatestSpend spend = latest.get();
+		double percent = spend.budget() > 0 ? spend.cost() / spend.budget() * 100 : 0;
+		slackNotifier.send(webhook, String.format(
+				"📊 주간 GCP 사용액 리포트%n이번 달 현재 %,.0f %s / 예산 %,.0f %s (%.1f%%)",
+				spend.cost(), spend.currency(), spend.budget(), spend.currency(), percent));
+		log.info("Weekly budget report sent");
 	}
 
 	private boolean shouldNotify(String interval, int percent) {
