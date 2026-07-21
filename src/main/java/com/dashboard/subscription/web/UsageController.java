@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dashboard.subscription.domain.ApiCredentials;
+import com.dashboard.subscription.domain.AuthUser;
 import com.dashboard.subscription.service.CachedUsageService;
 import com.dashboard.subscription.service.CredentialFingerprint;
 import com.dashboard.subscription.service.UsageHistoryStore;
@@ -56,12 +57,14 @@ public class UsageController {
 	}
 
 	/**
-	 * Operational traffic metric. ForwardedHeaderFilter has already resolved the real client
-	 * address behind the Firebase Hosting / Cloud Run proxy chain, so log-based counters can
-	 * exclude the operator's own IP. Only the IP is logged — never keys.
+	 * Operational traffic metric. The signed-in account is the reliable way to exclude the
+	 * operator's own traffic — Chrome's IP Protection can mask the client IP behind rotating
+	 * Google proxy addresses, so the IP alone cannot. Only IP and account are logged — never keys.
 	 */
 	private void logTraffic(HttpServletRequest request, boolean byok) {
-		log.info("Usage query: ip={} byok={}", request.getRemoteAddr(), byok);
+		Object user = request.getAttribute(AuthFilter.USER_ATTRIBUTE);
+		String account = user instanceof AuthUser authUser ? authUser.email() : "-";
+		log.info("Usage query: ip={} byok={} user={}", request.getRemoteAddr(), byok, account);
 	}
 
 	/**
