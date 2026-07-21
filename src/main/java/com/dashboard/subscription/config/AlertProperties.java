@@ -23,6 +23,8 @@ public class AlertProperties {
 	private String encryptionKey;
 	/** Comma-separated base64 keys retired by rotation; still accepted for decryption. */
 	private String oldEncryptionKeys;
+	/** Slack Incoming Webhook for GCP budget notifications; blank keeps budget relaying off. */
+	private String budgetSlackWebhook;
 	/** GCP project holding the Firestore subscription store; blank disables subscriptions. */
 	private String projectId;
 	private String firestoreBaseUrl = "https://firestore.googleapis.com";

@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.dashboard.subscription.config.AuthProperties;
 import com.dashboard.subscription.config.WebConfig;
+import com.dashboard.subscription.service.BudgetAlertService;
 import com.dashboard.subscription.service.CachedUsageService;
 import com.dashboard.subscription.service.JwtService;
 import com.dashboard.subscription.service.UsageHistoryStore;
@@ -22,7 +23,7 @@ import com.dashboard.subscription.service.UsageHistoryStore;
 /**
  * Auth behavior when only the shared ACCESS_TOKEN is configured (no Google login).
  */
-@WebMvcTest(UsageController.class)
+@WebMvcTest({UsageController.class, BudgetController.class})
 @Import(WebConfig.class)
 @EnableConfigurationProperties(AuthProperties.class)
 @TestPropertySource(properties = "dashboard.security.access-token=secret-token")
@@ -38,6 +39,9 @@ class AuthFilterLegacyModeTest {
 	private UsageHistoryStore usageHistoryStore;
 
 	@MockBean
+	private BudgetAlertService budgetAlertService;
+
+	@MockBean
 	private JwtService jwtService;
 
 	@Test
@@ -50,6 +54,24 @@ class AuthFilterLegacyModeTest {
 	void acceptsApiRequestWithSharedToken() throws Exception {
 		mockMvc.perform(get("/api/usage").header("X-Access-Token", "secret-token"))
 				.andExpect(status().isOk());
+	}
+
+	@Test
+	void budgetPushPassesWithQueryToken() throws Exception {
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+						.post("/api/budget/notify").param("token", "secret-token")
+						.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+						.content("{\"message\":{\"data\":\"\"}}"))
+				.andExpect(status().isOk());
+	}
+
+	@Test
+	void budgetPushRejectedWithoutToken() throws Exception {
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+						.post("/api/budget/notify")
+						.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+						.content("{}"))
+				.andExpect(status().isUnauthorized());
 	}
 
 	@Test

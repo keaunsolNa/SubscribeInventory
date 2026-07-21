@@ -28,8 +28,10 @@ import jakarta.servlet.http.HttpServletResponse;
  * <li>Legacy mode (only ACCESS_TOKEN set): the shared X-Access-Token header is required.</li>
  * <li>Open mode (nothing set): everything passes — local development.</li>
  * </ul>
- * The scheduler's sweep call (/api/alerts/check + X-Access-Token) is honored in every mode, and
- * /api/health, /api/auth/login, /api/auth/config, and CORS preflights stay open.
+ * Machine calls are honored in every mode: the scheduler's sweep (/api/alerts/check +
+ * X-Access-Token) and the budget Pub/Sub push (/api/budget/notify?token=..., query param because
+ * push requests cannot set headers). /api/health, /api/auth/login, /api/auth/config, and CORS
+ * preflights stay open.
  */
 @Component
 public class AuthFilter extends OncePerRequestFilter {
@@ -65,7 +67,7 @@ public class AuthFilter extends OncePerRequestFilter {
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
 			FilterChain filterChain) throws ServletException, IOException {
-		if (isSchedulerSweep(request)) {
+		if (isMachineCall(request)) {
 			filterChain.doFilter(request, response);
 			return;
 		}
@@ -87,10 +89,18 @@ public class AuthFilter extends OncePerRequestFilter {
 		reject(response, "invalid or missing access token");
 	}
 
-	private boolean isSchedulerSweep(HttpServletRequest request) {
-		return "/api/alerts/check".equals(request.getRequestURI())
-				&& StringUtils.hasText(accessToken)
-				&& accessToken.equals(request.getHeader(TOKEN_HEADER));
+	private boolean isMachineCall(HttpServletRequest request) {
+		if (!StringUtils.hasText(accessToken)) {
+			return false;
+		}
+		String uri = request.getRequestURI();
+		if ("/api/alerts/check".equals(uri)) {
+			return accessToken.equals(request.getHeader(TOKEN_HEADER));
+		}
+		if ("/api/budget/notify".equals(uri)) {
+			return accessToken.equals(request.getParameter("token"));
+		}
+		return false;
 	}
 
 	private Optional<AuthUser> bearerUser(HttpServletRequest request) {
