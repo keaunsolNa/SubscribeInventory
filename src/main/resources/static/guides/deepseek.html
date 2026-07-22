@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepSeek API 잔액 확인 방법 — user/balance API 정리</title>
+<meta name="description" content="DeepSeek API의 잔액을 확인하는 방법. 콘솔 확인법과 user/balance API 직접 조회법(일반 키로 가능), 잔액 0일 때의 응답 형태까지.">
+<link rel="canonical" href="https://subscribeinventory.web.app/guides/deepseek.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="SubscribeInventory">
+<meta property="og:title" content="DeepSeek API 잔액 확인 방법">
+<meta property="og:description" content="user/balance API로 DeepSeek 잔액을 확인하는 법 정리.">
+<meta property="og:url" content="https://subscribeinventory.web.app/guides/deepseek.html">
+<meta property="og:image" content="https://subscribeinventory.web.app/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/guides/guide.css">
+<script type="application/ld+json">
+{
+	"@context": "https://schema.org",
+	"@type": "FAQPage",
+	"mainEntity": [
+		{
+			"@type": "Question",
+			"name": "DeepSeek 잔액 조회에 특별한 키가 필요한가요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "아니요, platform.deepseek.com에서 발급한 일반 API 키로 /user/balance를 호출하면 됩니다." }
+		},
+		{
+			"@type": "Question",
+			"name": "잔액이 0이면 응답이 어떻게 오나요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "is_available이 false로 오거나 balance_infos 배열이 비어 있을 수 있습니다. 파싱 시 이 경우를 0원으로 처리해야 합니다." }
+		}
+	]
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+	<nav class="crumb"><a href="/">SubscribeInventory</a> · <a href="/guides/">가이드 목록</a></nav>
+	<h1>DeepSeek API 잔액 확인 방법</h1>
+	<p class="lead">DeepSeek은 잔액 전용 API를 공식 제공하는 몇 안 되는 서비스라 조회가
+		간단합니다. (2026-07 기준)</p>
+
+	<h2>방법 1 — 콘솔에서 확인</h2>
+	<p><a href="https://platform.deepseek.com" rel="nofollow">platform.deepseek.com</a> 우측 상단에
+		잔액이 바로 표시되고, Billing 메뉴에서 상세 내역을 볼 수 있습니다.</p>
+
+	<h2>방법 2 — API로 직접 조회</h2>
+	<pre><code>curl "https://api.deepseek.com/user/balance" \
+  -H "Authorization: Bearer $DEEPSEEK_API_KEY"</code></pre>
+	<p>응답의 <code>balance_infos</code> 배열에서 통화별 <code>total_balance</code>를 읽으면
+		됩니다. 일반 API 키로 호출 가능합니다. 잔액이 0이면 <code>is_available: false</code>이거나
+		배열이 비어 올 수 있으니 그 경우를 0으로 처리하세요.</p>
+
+	<h2>방법 3 — 대시보드에서 다른 서비스와 한 번에</h2>
+	<a class="cta" href="/">
+		<strong>SubscribeInventory에서 한 화면으로 →</strong>
+		<span>DeepSeek 잔액과 함께 OpenAI·Claude·xAI 등 8개 서비스의 잔액·사용량을 무료로 한 번에
+			확인하고, Slack 잔여량 알림까지 받을 수 있습니다. 키는 브라우저에만 저장됩니다.</span>
+	</a>
+
+	<h2>자주 묻는 질문</h2>
+	<h3>특별한 키가 필요한가요?</h3>
+	<p>아니요, 일반 API 키면 됩니다.</p>
+	<h3>잔액이 0이면 응답이 어떻게 오나요?</h3>
+	<p><code>is_available: false</code>이거나 <code>balance_infos</code>가 빈 배열일 수 있습니다.</p>
+
+	<footer class="guide-foot">
+		다른 가이드: <a href="/guides/openrouter.html">OpenRouter</a> ·
+		<a href="/guides/xai.html">xAI</a> · <a href="/guides/openai.html">OpenAI</a> ·
+		<a href="/guides/">전체 목록</a><br>
+		<a href="/">SubscribeInventory 대시보드</a> · <a href="/privacy.html">개인정보 안내</a>
+	</footer>
+</div>
+</body>
+</html>

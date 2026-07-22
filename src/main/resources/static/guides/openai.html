@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenAI API 사용액 확인 방법 — 콘솔·API 조회 정리 (Admin 키 함정 포함)</title>
+<meta name="description" content="OpenAI API의 이번 달 사용액을 확인하는 방법 정리. 콘솔에서 보는 법, Costs API로 직접 조회하는 법(일반 키가 아닌 Admin 키 필요), 그리고 여러 AI 서비스를 한 화면에서 보는 법.">
+<link rel="canonical" href="https://subscribeinventory.web.app/guides/openai.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="SubscribeInventory">
+<meta property="og:title" content="OpenAI API 사용액 확인 방법 — 콘솔·API 조회 정리">
+<meta property="og:description" content="콘솔 확인법 + Costs API 직접 조회(Admin 키 필요)까지, OpenAI 사용액 확인의 전부.">
+<meta property="og:url" content="https://subscribeinventory.web.app/guides/openai.html">
+<meta property="og:image" content="https://subscribeinventory.web.app/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/guides/guide.css">
+<script type="application/ld+json">
+{
+	"@context": "https://schema.org",
+	"@type": "FAQPage",
+	"mainEntity": [
+		{
+			"@type": "Question",
+			"name": "일반 API 키(sk-...)로 OpenAI 사용액을 조회할 수 있나요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "안 됩니다. 사용액 조회(Costs API)는 조직 소유자가 발급하는 Admin 키(sk-admin-...)에 api.usage.read 권한이 있어야 호출할 수 있습니다. 일반 추론용 키로는 401이 반환됩니다." }
+		},
+		{
+			"@type": "Question",
+			"name": "OpenAI는 잔여 크레딧(잔액)을 API로 주나요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "공식 API로는 제공하지 않습니다. 선불 크레딧 잔액은 콘솔에서만 보이고, API로는 기간별 사용액(Costs)만 조회할 수 있어 월초부터의 누적 지출로 관리하는 것이 일반적입니다." }
+		},
+		{
+			"@type": "Question",
+			"name": "Costs API 응답이 느린데 정상인가요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "네, 이 엔드포인트는 집계 연산 특성상 가끔 10초 이상 걸립니다. 클라이언트 읽기 타임아웃을 20초 이상으로 잡는 것을 권장합니다." }
+		}
+	]
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+	<nav class="crumb"><a href="/">SubscribeInventory</a> · <a href="/guides/">가이드 목록</a></nav>
+	<h1>OpenAI API 사용액 확인 방법</h1>
+	<p class="lead">OpenAI는 잔여 크레딧을 API로 주지 않아서, "이번 달 얼마나 썼는지"를 추적하는 방식으로
+		관리합니다. 콘솔에서 보는 법과 API로 직접 조회하는 법을 정리했습니다. (2026-07 기준)</p>
+
+	<h2>방법 1 — 콘솔에서 확인</h2>
+	<p><a href="https://platform.openai.com/usage" rel="nofollow">platform.openai.com/usage</a>에서
+		기간별 사용액을, Settings → Billing에서 선불 크레딧 잔액과 결제 수단을 볼 수 있습니다.
+		가장 정확하지만 매번 로그인해서 들어가야 합니다.</p>
+
+	<h2>방법 2 — Costs API로 직접 조회</h2>
+	<div class="note">⚠️ <strong>일반 API 키(sk-...)로는 안 됩니다.</strong> 조직 관리 화면에서 발급하는
+		<strong>Admin 키(sk-admin-...)</strong>가 필요하고, 키에 <code>api.usage.read</code> 권한이
+		있어야 합니다. (Settings → Organization → Admin keys)</div>
+	<pre><code>curl "https://api.openai.com/v1/organization/costs?start_time=1751328000&amp;limit=31" \
+  -H "Authorization: Bearer $OPENAI_ADMIN_KEY"</code></pre>
+	<p><code>start_time</code>은 유닉스 타임(월초)이고, 응답의 버킷별 <code>amount</code>를 합치면
+		해당 기간 사용액(USD)이 됩니다. 참고로 이 엔드포인트는 가끔 10초 이상 걸리므로 읽기
+		타임아웃을 넉넉히(20초+) 잡는 게 안전합니다.</p>
+
+	<h2>방법 3 — 대시보드에서 다른 서비스와 한 번에</h2>
+	<a class="cta" href="/">
+		<strong>SubscribeInventory에서 한 화면으로 →</strong>
+		<span>OpenAI 사용액과 함께 Anthropic·xAI·DeepSeek 등 8개 서비스의 잔액·사용량을 무료로
+			한 번에 확인하고, Slack 잔여량 알림까지 받을 수 있습니다. 키는 브라우저에만 저장됩니다.</span>
+	</a>
+
+	<h2>자주 묻는 질문</h2>
+	<h3>일반 API 키(sk-...)로 사용액을 조회할 수 있나요?</h3>
+	<p>안 됩니다. Costs API는 Admin 키(<code>api.usage.read</code> 권한) 전용이라 일반 추론용
+		키로는 401이 반환됩니다.</p>
+	<h3>잔여 크레딧(잔액)을 API로 받을 수는 없나요?</h3>
+	<p>공식 API로는 제공되지 않습니다. 선불 크레딧 잔액은 콘솔에서만 보이므로, API 기반
+		모니터링은 월 누적 사용액으로 하는 것이 현실적입니다.</p>
+	<h3>Costs API 응답이 느린데 정상인가요?</h3>
+	<p>네, 집계 특성상 가끔 10초 이상 걸립니다. 타임아웃을 20초 이상으로 설정하세요.</p>
+
+	<footer class="guide-foot">
+		다른 가이드: <a href="/guides/anthropic.html">Anthropic</a> ·
+		<a href="/guides/xai.html">xAI</a> · <a href="/guides/deepseek.html">DeepSeek</a> ·
+		<a href="/guides/">전체 목록</a><br>
+		<a href="/">SubscribeInventory 대시보드</a> · <a href="/privacy.html">개인정보 안내</a>
+	</footer>
+</div>
+</body>
+</html>

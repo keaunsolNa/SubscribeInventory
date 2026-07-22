@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElevenLabs 남은 글자 수(할당량) 확인 방법 — 콘솔·API 정리</title>
+<meta name="description" content="ElevenLabs의 남은 글자 수(character quota)를 확인하는 방법. 콘솔 확인법과 subscription API 직접 조회법(일반 키로 가능), 리셋 날짜 확인까지.">
+<link rel="canonical" href="https://subscribeinventory.web.app/guides/elevenlabs.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="SubscribeInventory">
+<meta property="og:title" content="ElevenLabs 남은 글자 수(할당량) 확인 방법">
+<meta property="og:description" content="콘솔 확인법 + subscription API 조회까지 정리.">
+<meta property="og:url" content="https://subscribeinventory.web.app/guides/elevenlabs.html">
+<meta property="og:image" content="https://subscribeinventory.web.app/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/guides/guide.css">
+<script type="application/ld+json">
+{
+	"@context": "https://schema.org",
+	"@type": "FAQPage",
+	"mainEntity": [
+		{
+			"@type": "Question",
+			"name": "ElevenLabs 할당량 조회에 특별한 키가 필요한가요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "아니요, 일반 API 키(xi-api-key)로 /v1/user/subscription을 호출하면 됩니다. 별도 관리자 키가 필요 없습니다." }
+		},
+		{
+			"@type": "Question",
+			"name": "남은 글자 수는 어떻게 계산하나요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "응답의 character_limit(플랜 한도)에서 character_count(사용량)를 빼면 남은 글자 수입니다. next_character_count_reset_unix가 다음 리셋 시각입니다." }
+		}
+	]
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+	<nav class="crumb"><a href="/">SubscribeInventory</a> · <a href="/guides/">가이드 목록</a></nav>
+	<h1>ElevenLabs 남은 글자 수(할당량) 확인 방법</h1>
+	<p class="lead">ElevenLabs는 크레딧이 아니라 <strong>월 글자 수 할당량</strong> 방식입니다.
+		다행히 8개 서비스 중 조회가 가장 쉬운 편으로, 일반 키로 바로 확인됩니다. (2026-07 기준)</p>
+
+	<h2>방법 1 — 콘솔에서 확인</h2>
+	<p><a href="https://elevenlabs.io" rel="nofollow">elevenlabs.io</a> 로그인 후 좌측 하단 프로필 →
+		Subscription에서 사용량 바를 볼 수 있습니다.</p>
+
+	<h2>방법 2 — API로 직접 조회</h2>
+	<pre><code>curl "https://api.elevenlabs.io/v1/user/subscription" \
+  -H "xi-api-key: $ELEVENLABS_API_KEY"</code></pre>
+	<p>응답에서 <code>character_count</code>(사용량), <code>character_limit</code>(플랜 한도),
+		<code>next_character_count_reset_unix</code>(다음 리셋 시각)를 읽으면 됩니다.
+		남은 글자 수 = limit − count. 일반 API 키로 호출 가능해서 별도 관리자 키가 필요 없습니다.</p>
+
+	<h2>방법 3 — 대시보드에서 다른 서비스와 한 번에</h2>
+	<a class="cta" href="/">
+		<strong>SubscribeInventory에서 한 화면으로 →</strong>
+		<span>ElevenLabs 잔여 글자 수를 게이지로 보여주고, OpenAI·Claude·xAI 등 8개 서비스와 함께
+			Slack 잔여량 알림까지 무료로 제공합니다. 키는 브라우저에만 저장됩니다.</span>
+	</a>
+
+	<h2>자주 묻는 질문</h2>
+	<h3>특별한 키가 필요한가요?</h3>
+	<p>아니요, 일반 API 키(xi-api-key 헤더)면 됩니다.</p>
+	<h3>남은 글자 수는 어떻게 계산하나요?</h3>
+	<p><code>character_limit − character_count</code>이고, 리셋 시각은
+		<code>next_character_count_reset_unix</code>입니다.</p>
+
+	<footer class="guide-foot">
+		다른 가이드: <a href="/guides/openai.html">OpenAI</a> ·
+		<a href="/guides/stability.html">Stability AI</a> · <a href="/guides/fal.html">fal.ai</a> ·
+		<a href="/guides/">전체 목록</a><br>
+		<a href="/">SubscribeInventory 대시보드</a> · <a href="/privacy.html">개인정보 안내</a>
+	</footer>
+</div>
+</body>
+</html>

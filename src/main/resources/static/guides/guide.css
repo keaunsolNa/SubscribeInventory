@@ -1,0 +1,100 @@
+/* Guide pages share the dashboard palette but stay JS-free: theme follows the OS only. */
+:root {
+	color-scheme: light;
+	--surface-1: #fcfcfb;
+	--page: #f9f9f7;
+	--text-primary: #0b0b0b;
+	--text-secondary: #52514e;
+	--text-muted: #898781;
+	--border: rgba(11, 11, 11, 0.10);
+	--series-1: #2a78d6;
+	--track: #ecebe6;
+	--warning-bg: #fdf6e3;
+}
+@media (prefers-color-scheme: dark) {
+	:root {
+		color-scheme: dark;
+		--surface-1: #1a1a19;
+		--page: #0d0d0d;
+		--text-primary: #ffffff;
+		--text-secondary: #c3c2b7;
+		--text-muted: #898781;
+		--border: rgba(255, 255, 255, 0.10);
+		--series-1: #3987e5;
+		--track: #2c2c2a;
+		--warning-bg: #26200f;
+	}
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+	background: var(--page);
+	color: var(--text-primary);
+	font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+	font-size: 15.5px;
+	line-height: 1.75;
+}
+.wrap { max-width: 760px; margin: 0 auto; padding: 28px 20px 64px; }
+
+nav.crumb { font-size: 13.5px; margin-bottom: 26px; }
+nav.crumb a { color: var(--series-1); text-decoration: none; }
+nav.crumb a:hover { text-decoration: underline; }
+
+h1 { font-size: 26px; line-height: 1.35; letter-spacing: -0.01em; margin: 0 0 10px; }
+.lead { color: var(--text-secondary); margin: 0 0 28px; }
+h2 { font-size: 19px; margin: 36px 0 10px; }
+h3 { font-size: 15.5px; margin: 22px 0 6px; }
+p { margin: 0 0 14px; }
+a { color: var(--series-1); }
+ul, ol { margin: 0 0 14px; padding-left: 22px; }
+li { margin-bottom: 4px; }
+
+code {
+	background: var(--track);
+	padding: 1px 6px;
+	border-radius: 5px;
+	font-size: 13.5px;
+	font-family: ui-monospace, Consolas, monospace;
+}
+pre {
+	background: var(--surface-1);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 14px 16px;
+	overflow-x: auto;
+	font-size: 13px;
+	line-height: 1.6;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+
+.note {
+	background: var(--warning-bg);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 12px 16px;
+	font-size: 14px;
+	margin: 0 0 14px;
+}
+.cta {
+	display: block;
+	background: var(--surface-1);
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	padding: 16px 18px;
+	margin: 20px 0;
+	text-decoration: none;
+	color: var(--text-primary);
+}
+.cta:hover { border-color: var(--series-1); }
+.cta strong { color: var(--series-1); }
+.cta span { display: block; font-size: 13.5px; color: var(--text-secondary); margin-top: 4px; }
+
+footer.guide-foot {
+	margin-top: 44px;
+	padding-top: 18px;
+	border-top: 1px solid var(--border);
+	font-size: 13.5px;
+	color: var(--text-muted);
+	line-height: 1.9;
+}

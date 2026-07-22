@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenRouter 크레딧 잔액 확인 방법 — credits API 정리</title>
+<meta name="description" content="OpenRouter의 크레딧 잔액을 확인하는 방법. 콘솔 확인법과 credits API 직접 조회법(일반 키로 가능), 잔액 계산식까지.">
+<link rel="canonical" href="https://subscribeinventory.web.app/guides/openrouter.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="SubscribeInventory">
+<meta property="og:title" content="OpenRouter 크레딧 잔액 확인 방법">
+<meta property="og:description" content="credits API로 OpenRouter 잔액을 확인하는 법 정리.">
+<meta property="og:url" content="https://subscribeinventory.web.app/guides/openrouter.html">
+<meta property="og:image" content="https://subscribeinventory.web.app/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/guides/guide.css">
+<script type="application/ld+json">
+{
+	"@context": "https://schema.org",
+	"@type": "FAQPage",
+	"mainEntity": [
+		{
+			"@type": "Question",
+			"name": "OpenRouter 잔액은 어떻게 계산하나요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "/api/v1/credits 응답의 total_credits(총 충전)에서 total_usage(총 사용)를 빼면 현재 잔액(USD)입니다." }
+		},
+		{
+			"@type": "Question",
+			"name": "특별한 키가 필요한가요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "아니요, openrouter.ai에서 발급한 일반 API 키(sk-or-...)로 호출하면 됩니다." }
+		}
+	]
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+	<nav class="crumb"><a href="/">SubscribeInventory</a> · <a href="/guides/">가이드 목록</a></nav>
+	<h1>OpenRouter 크레딧 잔액 확인 방법</h1>
+	<p class="lead">여러 LLM을 한 키로 쓰는 OpenRouter는 잔액 조회도 간단한 편입니다 — 다만 응답이
+		"잔액"이 아니라 "총 충전·총 사용" 형태라 한 번 계산이 필요합니다. (2026-07 기준)</p>
+
+	<h2>방법 1 — 콘솔에서 확인</h2>
+	<p><a href="https://openrouter.ai/settings/credits" rel="nofollow">openrouter.ai/settings/credits</a>에서
+		잔액과 충전 내역을 볼 수 있습니다.</p>
+
+	<h2>방법 2 — API로 직접 조회</h2>
+	<pre><code>curl "https://openrouter.ai/api/v1/credits" \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY"</code></pre>
+	<p>응답의 <code>data.total_credits</code>(총 충전)와 <code>data.total_usage</code>(총 사용)를
+		읽어서 <strong>잔액 = total_credits − total_usage</strong> 로 계산합니다 (USD).
+		일반 키(sk-or-...)로 호출 가능합니다.</p>
+
+	<h2>방법 3 — 대시보드에서 다른 서비스와 한 번에</h2>
+	<a class="cta" href="/">
+		<strong>SubscribeInventory에서 한 화면으로 →</strong>
+		<span>OpenRouter 잔액을 계산까지 마친 값으로 보여주고, OpenAI·Claude·xAI 등 8개 서비스와
+			함께 Slack 잔여량 알림까지 무료로 제공합니다. 키는 브라우저에만 저장됩니다.</span>
+	</a>
+
+	<h2>자주 묻는 질문</h2>
+	<h3>잔액은 어떻게 계산하나요?</h3>
+	<p><code>total_credits − total_usage</code> 입니다.</p>
+	<h3>특별한 키가 필요한가요?</h3>
+	<p>아니요, 일반 API 키면 됩니다.</p>
+
+	<footer class="guide-foot">
+		다른 가이드: <a href="/guides/deepseek.html">DeepSeek</a> ·
+		<a href="/guides/openai.html">OpenAI</a> · <a href="/guides/anthropic.html">Anthropic</a> ·
+		<a href="/guides/">전체 목록</a><br>
+		<a href="/">SubscribeInventory 대시보드</a> · <a href="/privacy.html">개인정보 안내</a>
+	</footer>
+</div>
+</body>
+</html>

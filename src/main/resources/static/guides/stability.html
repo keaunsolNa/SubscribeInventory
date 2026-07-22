@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stability AI 크레딧 잔액 확인 방법 — user/balance API 정리</title>
+<meta name="description" content="Stability AI의 크레딧 잔액을 확인하는 방법. 콘솔 확인법과 user/balance API 직접 조회법(일반 키로 가능)까지.">
+<link rel="canonical" href="https://subscribeinventory.web.app/guides/stability.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="SubscribeInventory">
+<meta property="og:title" content="Stability AI 크레딧 잔액 확인 방법">
+<meta property="og:description" content="user/balance API로 Stability AI 잔액을 확인하는 법 정리.">
+<meta property="og:url" content="https://subscribeinventory.web.app/guides/stability.html">
+<meta property="og:image" content="https://subscribeinventory.web.app/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/guides/guide.css">
+<script type="application/ld+json">
+{
+	"@context": "https://schema.org",
+	"@type": "FAQPage",
+	"mainEntity": [
+		{
+			"@type": "Question",
+			"name": "Stability AI 잔액 조회에 특별한 키가 필요한가요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "아니요, platform.stability.ai에서 발급한 일반 API 키로 /v1/user/balance를 호출하면 credits 숫자가 바로 옵니다." }
+		},
+		{
+			"@type": "Question",
+			"name": "Stability 크레딧의 화폐 가치는 얼마인가요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "크레딧은 자체 단위로, 구매 기준 1,000크레딧이 $10입니다 (모델별 소모량은 상이). 가입 시 소량의 무료 크레딧이 제공되는 경우가 있습니다." }
+		}
+	]
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+	<nav class="crumb"><a href="/">SubscribeInventory</a> · <a href="/guides/">가이드 목록</a></nav>
+	<h1>Stability AI 크레딧 잔액 확인 방법</h1>
+	<p class="lead">이미지 생성 서비스 Stability AI는 크레딧 방식이고, 잔액 API가 단순해서
+		조회가 쉽습니다. (2026-07 기준)</p>
+
+	<h2>방법 1 — 콘솔에서 확인</h2>
+	<p><a href="https://platform.stability.ai/account/credits" rel="nofollow">platform.stability.ai</a> →
+		Account → Credits에서 잔액과 충전 메뉴를 볼 수 있습니다.</p>
+
+	<h2>방법 2 — API로 직접 조회</h2>
+	<pre><code>curl "https://api.stability.ai/v1/user/balance" \
+  -H "Authorization: Bearer $STABILITY_API_KEY"</code></pre>
+	<p>응답이 <code>{"credits": 25.0}</code> 형태로 바로 옵니다. 일반 API 키로 호출 가능합니다.
+		크레딧은 자체 단위이며 구매 기준 1,000크레딧 = $10입니다.</p>
+
+	<h2>방법 3 — 대시보드에서 다른 서비스와 한 번에</h2>
+	<a class="cta" href="/">
+		<strong>SubscribeInventory에서 한 화면으로 →</strong>
+		<span>Stability 크레딧과 함께 OpenAI·Claude·fal.ai 등 8개 서비스의 잔액·사용량을 무료로
+			한 번에 확인하고, Slack 잔여량 알림까지 받을 수 있습니다. 키는 브라우저에만 저장됩니다.</span>
+	</a>
+
+	<h2>자주 묻는 질문</h2>
+	<h3>특별한 키가 필요한가요?</h3>
+	<p>아니요, 일반 API 키면 됩니다.</p>
+	<h3>크레딧의 화폐 가치는요?</h3>
+	<p>구매 기준 1,000크레딧 = $10이고, 모델·해상도별 소모량은 다릅니다.</p>
+
+	<footer class="guide-foot">
+		다른 가이드: <a href="/guides/fal.html">fal.ai</a> ·
+		<a href="/guides/elevenlabs.html">ElevenLabs</a> · <a href="/guides/openai.html">OpenAI</a> ·
+		<a href="/guides/">전체 목록</a><br>
+		<a href="/">SubscribeInventory 대시보드</a> · <a href="/privacy.html">개인정보 안내</a>
+	</footer>
+</div>
+</body>
+</html>

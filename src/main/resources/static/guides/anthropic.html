@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anthropic (Claude) API 사용액 확인 방법 — Admin 키는 조직 계정 전용</title>
+<meta name="description" content="Anthropic Claude API의 이번 달 사용액을 확인하는 방법. 콘솔 확인법, Cost Report API 직접 조회(조직 Admin 키 필요 — 개인 계정은 조직 구성 선행), 여러 AI 서비스 통합 확인까지.">
+<link rel="canonical" href="https://subscribeinventory.web.app/guides/anthropic.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="SubscribeInventory">
+<meta property="og:title" content="Anthropic (Claude) API 사용액 확인 방법">
+<meta property="og:description" content="콘솔 확인법 + Cost Report API 조회(조직 Admin 키 필요)까지 정리.">
+<meta property="og:url" content="https://subscribeinventory.web.app/guides/anthropic.html">
+<meta property="og:image" content="https://subscribeinventory.web.app/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/guides/guide.css">
+<script type="application/ld+json">
+{
+	"@context": "https://schema.org",
+	"@type": "FAQPage",
+	"mainEntity": [
+		{
+			"@type": "Question",
+			"name": "일반 Anthropic API 키(sk-ant-api...)로 사용액을 조회할 수 있나요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "안 됩니다. 사용액·비용 조회는 Admin 키(sk-ant-admin-...) 전용이며, Admin 키는 조직(Organization) 계정에서만 발급됩니다." }
+		},
+		{
+			"@type": "Question",
+			"name": "개인 계정인데 Admin 키 발급 메뉴가 안 보여요.",
+			"acceptedAnswer": { "@type": "Answer", "text": "Admin 키는 조직 계정 전용입니다. 콘솔에서 조직을 구성(개인 계정을 조직으로 전환/생성)하면 Admin 키 발급 메뉴가 나타납니다. 조직 구성은 무료입니다." }
+		},
+		{
+			"@type": "Question",
+			"name": "Anthropic은 잔여 크레딧을 API로 주나요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "잔액 전용 API는 없고 기간별 비용(Cost Report)만 제공됩니다. 월초부터의 누적 사용액으로 관리하는 방식이 일반적입니다." }
+		}
+	]
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+	<nav class="crumb"><a href="/">SubscribeInventory</a> · <a href="/guides/">가이드 목록</a></nav>
+	<h1>Anthropic (Claude) API 사용액 확인 방법</h1>
+	<p class="lead">Claude API의 비용 조회에는 일반 키가 아닌 <strong>조직(Organization) Admin 키</strong>가
+		필요합니다 — 개인 계정에서 이 메뉴가 안 보여 헤매는 경우가 많습니다. 순서대로 정리했습니다. (2026-07 기준)</p>
+
+	<h2>방법 1 — 콘솔에서 확인</h2>
+	<p><a href="https://console.anthropic.com/settings/billing" rel="nofollow">console.anthropic.com</a> →
+		Billing에서 크레딧 잔액과 사용 내역을 볼 수 있습니다.</p>
+
+	<h2>방법 2 — Cost Report API로 직접 조회</h2>
+	<div class="note">⚠️ <strong>Admin 키(sk-ant-admin-...)는 조직 계정 전용입니다.</strong> 개인
+		계정이면 먼저 콘솔에서 조직을 구성해야 Admin Keys 메뉴가 나타납니다 (무료). 일반 키
+		(sk-ant-api...)로는 비용 API를 호출할 수 없습니다.</div>
+	<pre><code>curl "https://api.anthropic.com/v1/organizations/cost_report?starting_at=2026-07-01T00:00:00Z" \
+  -H "x-api-key: $ANTHROPIC_ADMIN_KEY" \
+  -H "anthropic-version: 2023-06-01"</code></pre>
+	<p>응답의 버킷별 금액을 합치면 기간 사용액(USD)입니다. 잔액 전용 API는 없으므로 월 누적
+		사용액 기준으로 모니터링합니다.</p>
+
+	<h2>방법 3 — 대시보드에서 다른 서비스와 한 번에</h2>
+	<a class="cta" href="/">
+		<strong>SubscribeInventory에서 한 화면으로 →</strong>
+		<span>Claude 사용액과 함께 OpenAI·xAI·DeepSeek 등 8개 서비스의 잔액·사용량을 무료로 한 번에
+			확인하고, Slack 잔여량 알림까지 받을 수 있습니다. 키는 브라우저에만 저장됩니다.</span>
+	</a>
+
+	<h2>자주 묻는 질문</h2>
+	<h3>일반 키(sk-ant-api...)로 사용액을 조회할 수 있나요?</h3>
+	<p>안 됩니다. 비용 조회는 Admin 키 전용입니다.</p>
+	<h3>개인 계정인데 Admin 키 발급 메뉴가 안 보여요.</h3>
+	<p>Admin 키는 조직 계정 전용이라, 콘솔에서 조직을 구성하면 메뉴가 나타납니다.</p>
+	<h3>잔여 크레딧을 API로 받을 수는 없나요?</h3>
+	<p>잔액 전용 API는 없고 기간별 비용 리포트만 제공됩니다.</p>
+
+	<footer class="guide-foot">
+		다른 가이드: <a href="/guides/openai.html">OpenAI</a> ·
+		<a href="/guides/xai.html">xAI</a> · <a href="/guides/openrouter.html">OpenRouter</a> ·
+		<a href="/guides/">전체 목록</a><br>
+		<a href="/">SubscribeInventory 대시보드</a> · <a href="/privacy.html">개인정보 안내</a>
+	</footer>
+</div>
+</body>
+</html>

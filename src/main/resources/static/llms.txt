@@ -19,3 +19,23 @@
   크레딧·사용액 카드와 요약 타일이 표시됨
 - [개인정보 및 데이터 처리 안내](https://subscribeinventory.web.app/privacy.html): 처리 항목,
   보관·삭제, 위탁, 이용자 권리, 문의처
+
+## 서비스별 잔액 확인 가이드
+
+각 AI 서비스의 잔여 크레딧·사용량을 콘솔과 API로 확인하는 방법 (키 종류·스코프 함정 포함):
+
+- [OpenAI](https://subscribeinventory.web.app/guides/openai.html): Costs API는 Admin 키
+  (api.usage.read) 전용, 잔액 API 없음
+- [Anthropic(Claude)](https://subscribeinventory.web.app/guides/anthropic.html): Cost Report는
+  조직 Admin 키 전용 — 개인 계정은 조직 구성 선행
+- [xAI(Grok)](https://subscribeinventory.web.app/guides/xai.html): prepaid/balance는 콘솔과 다름
+  — 인보이스 미리보기의 prepaidCredits로 계산 (센트 문자열·음수)
+- [ElevenLabs](https://subscribeinventory.web.app/guides/elevenlabs.html): /v1/user/subscription,
+  일반 키 가능
+- [DeepSeek](https://subscribeinventory.web.app/guides/deepseek.html): /user/balance, 일반 키 가능
+- [OpenRouter](https://subscribeinventory.web.app/guides/openrouter.html): /api/v1/credits,
+  잔액 = total_credits − total_usage
+- [Stability AI](https://subscribeinventory.web.app/guides/stability.html): /v1/user/balance,
+  일반 키 가능
+- [fal.ai](https://subscribeinventory.web.app/guides/fal.html): billing API는 ADMIN 스코프 키
+  전용 (기본 키는 403), "Key id:secret" 인증 스킴

@@ -6,6 +6,51 @@
 		<priority>1.0</priority>
 	</url>
 	<url>
+		<loc>https://subscribeinventory.web.app/guides/</loc>
+		<changefreq>monthly</changefreq>
+		<priority>0.8</priority>
+	</url>
+	<url>
+		<loc>https://subscribeinventory.web.app/guides/openai.html</loc>
+		<changefreq>monthly</changefreq>
+		<priority>0.7</priority>
+	</url>
+	<url>
+		<loc>https://subscribeinventory.web.app/guides/anthropic.html</loc>
+		<changefreq>monthly</changefreq>
+		<priority>0.7</priority>
+	</url>
+	<url>
+		<loc>https://subscribeinventory.web.app/guides/xai.html</loc>
+		<changefreq>monthly</changefreq>
+		<priority>0.7</priority>
+	</url>
+	<url>
+		<loc>https://subscribeinventory.web.app/guides/elevenlabs.html</loc>
+		<changefreq>monthly</changefreq>
+		<priority>0.7</priority>
+	</url>
+	<url>
+		<loc>https://subscribeinventory.web.app/guides/deepseek.html</loc>
+		<changefreq>monthly</changefreq>
+		<priority>0.7</priority>
+	</url>
+	<url>
+		<loc>https://subscribeinventory.web.app/guides/openrouter.html</loc>
+		<changefreq>monthly</changefreq>
+		<priority>0.7</priority>
+	</url>
+	<url>
+		<loc>https://subscribeinventory.web.app/guides/stability.html</loc>
+		<changefreq>monthly</changefreq>
+		<priority>0.7</priority>
+	</url>
+	<url>
+		<loc>https://subscribeinventory.web.app/guides/fal.html</loc>
+		<changefreq>monthly</changefreq>
+		<priority>0.7</priority>
+	</url>
+	<url>
 		<loc>https://subscribeinventory.web.app/privacy.html</loc>
 		<changefreq>yearly</changefreq>
 		<priority>0.3</priority>
