@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
@@ -33,6 +34,13 @@ public class WebConfig {
 						.allowedOrigins("*")
 						.allowedMethods("GET", "POST", "DELETE")
 						.allowedHeaders("*");
+			}
+
+			// Static resources only auto-index at the root, so the guides hub needs a forward.
+			@Override
+			public void addViewControllers(ViewControllerRegistry registry) {
+				registry.addViewController("/guides/").setViewName("forward:/guides/index.html");
+				registry.addRedirectViewController("/guides", "/guides/");
 			}
 		};
 	}
