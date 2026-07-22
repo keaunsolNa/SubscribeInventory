@@ -25,6 +25,8 @@ public class AlertProperties {
 	private String oldEncryptionKeys;
 	/** Slack Incoming Webhook for GCP budget notifications; blank keeps budget relaying off. */
 	private String budgetSlackWebhook;
+	/** Slack Incoming Webhook for user feedback; blank keeps the Slack relay off. */
+	private String feedbackSlackWebhook;
 	/** GCP project holding the Firestore subscription store; blank disables subscriptions. */
 	private String projectId;
 	private String firestoreBaseUrl = "https://firestore.googleapis.com";

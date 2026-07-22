@@ -30,6 +30,7 @@ dashboard:
     encryption-key: ${ENCRYPTION_KEY:}
     old-encryption-keys: ${ENCRYPTION_OLD_KEYS:}
     budget-slack-webhook: ${BUDGET_SLACK_WEBHOOK:}
+    feedback-slack-webhook: ${FEEDBACK_SLACK_WEBHOOK:}
     project-id: ${GCP_PROJECT_ID:}
     quota-warn-percent: 80
     balance-min-usd: 5

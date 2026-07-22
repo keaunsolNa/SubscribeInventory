@@ -165,11 +165,12 @@
 	   invisible button swallows clicks on neighboring header buttons. */
 	.gsi-overlay div, .gsi-overlay iframe { width: 100% !important; height: 100% !important; }
 
-	button, select, input {
+	button, select, input, textarea {
 		font-family: inherit; font-size: 13.5px; color: var(--text-primary);
 		background: var(--surface-2); border: 1px solid var(--border);
 		border-radius: 8px; padding: 7px 11px; cursor: pointer;
 	}
+	textarea { width: 100%; cursor: text; resize: vertical; line-height: 1.6; }
 	button:hover, select:hover { border-color: var(--baseline); }
 	button.primary { background: var(--series-1); color: #fff; border-color: transparent; font-weight: 600; }
 	button.primary:hover { filter: brightness(1.05); }
@@ -385,6 +386,22 @@
 				<h3>이용 요금이 있나요?</h3>
 				<p>무료입니다. Google 계정으로 로그인한 뒤 본인의 API 키를 등록해 바로 사용할 수 있습니다.</p>
 			</div>
+		</div>
+	</details>
+
+	<details class="keys-panel" id="feedbackPanel" style="margin-top: 18px;">
+		<summary>💬 피드백 · 기능 제안</summary>
+		<div style="margin-top: 10px;">
+			<textarea id="feedbackText" rows="3" maxlength="2000"
+				placeholder="개선 아이디어, 버그, 불편했던 점을 알려주세요"></textarea>
+			<div style="display:flex; gap:10px; align-items:center; margin-top:8px;">
+				<button id="feedbackSend" class="primary">보내기</button>
+				<span class="muted-note" id="feedbackStatus"></span>
+			</div>
+			<div class="keys-note">로그인한 계정 이메일과 함께 전달됩니다. 이메일로 직접 보내시려면
+				<a href="mailto:knsol19921@gmail.com">knsol19921@gmail.com</a>, 버그 리포트·기능 제안은
+				<a href="https://github.com/keaunsolNa/SubscribeInventory/issues" target="_blank"
+					rel="noopener">GitHub Issues</a>도 열려 있습니다.</div>
 		</div>
 	</details>
 
@@ -1078,6 +1095,27 @@
 	});
 	// Card badges read the balance threshold, so editing it should repaint them right away.
 	document.getElementById("alertBalance").addEventListener("change", render);
+
+	// ---- Feedback ----
+	document.getElementById("feedbackSend").addEventListener("click", async function () {
+		const status = document.getElementById("feedbackStatus");
+		const text = document.getElementById("feedbackText").value.trim();
+		if (!text) { status.textContent = "내용을 입력해 주세요"; return; }
+		status.textContent = "전송 중…";
+		try {
+			const res = await fetch(baseUrl() + "/api/feedback", {
+				method: "POST",
+				headers: authHeaders({ "Content-Type": "application/json" }),
+				body: JSON.stringify({ message: text })
+			});
+			if (res.status === 401) { status.textContent = "로그인 후 보낼 수 있습니다"; return; }
+			if (!res.ok) { throw new Error("HTTP " + res.status); }
+			document.getElementById("feedbackText").value = "";
+			status.textContent = "전달됐습니다. 감사합니다! 🙏";
+		} catch (err) {
+			status.textContent = "전송 실패 — 이메일(knsol19921@gmail.com)로 보내주세요";
+		}
+	});
 	renderAlertPanel();
 	if (stored.accessToken) {
 		state.accessToken = stored.accessToken;
