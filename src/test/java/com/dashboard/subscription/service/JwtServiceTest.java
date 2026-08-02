@@ -71,6 +71,55 @@ class JwtServiceTest {
 		assertThat(service.verify("")).isEmpty();
 	}
 
+	@Test
+	void inspectAcceptsAndReportsExpiry() {
+		JwtService.Verification verification = service.inspect(service.issue(USER));
+
+		assertThat(verification.valid()).isTrue();
+		assertThat(verification.user()).isEqualTo(USER);
+		assertThat(verification.rejection()).isEqualTo(JwtService.Rejection.NONE);
+		assertThat(verification.expiresAt()).isEqualTo(NOW.plus(Duration.ofDays(7)));
+	}
+
+	@Test
+	void inspectSeparatesExpiryFromTampering() {
+		String token = service.issue(USER);
+		clock.advance(Duration.ofDays(8));
+
+		JwtService.Verification expired = service.inspect(token);
+
+		assertThat(expired.valid()).isFalse();
+		assertThat(expired.rejection()).isEqualTo(JwtService.Rejection.EXPIRED);
+		assertThat(expired.expiresAt()).isEqualTo(NOW.plus(Duration.ofDays(7)));
+
+		JwtService.Verification tampered =
+				service.inspect(token.substring(0, token.length() - 4) + "AAAA");
+
+		assertThat(tampered.valid()).isFalse();
+		assertThat(tampered.rejection()).isEqualTo(JwtService.Rejection.BAD_SIGNATURE);
+		assertThat(tampered.expiresAt()).isNull();
+	}
+
+	@Test
+	void inspectNamesMalformedTokens() {
+		assertThat(service.inspect("not-a-jwt").rejection()).isEqualTo(JwtService.Rejection.MALFORMED);
+		assertThat(service.inspect("a.b").rejection()).isEqualTo(JwtService.Rejection.MALFORMED);
+		assertThat(service.inspect("").rejection()).isEqualTo(JwtService.Rejection.MALFORMED);
+		assertThat(service.inspect("a.!!.c").rejection()).isEqualTo(JwtService.Rejection.MALFORMED);
+	}
+
+	@Test
+	void tokenSignedWithAnotherSecretIsBadSignatureNotMalformed() {
+		AuthProperties other = new AuthProperties();
+		byte[] secret = new byte[32];
+		new SecureRandom().nextBytes(secret);
+		other.setJwtSecret(Base64.getEncoder().encodeToString(secret));
+		String foreignToken = new JwtService(other, clock).issue(USER);
+
+		assertThat(service.inspect(foreignToken).rejection())
+				.isEqualTo(JwtService.Rejection.BAD_SIGNATURE);
+	}
+
 	private static final class MutableClock extends Clock {
 
 		private Instant now;

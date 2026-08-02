@@ -805,10 +805,7 @@
 			} else {
 				res = await fetch(base + "/api/usage", { headers: headers });
 			}
-			if (res.status === 401) {
-				throw new Error(auth.mode === "google"
-					? "HTTP 401 — 로그인이 필요합니다" : "HTTP 401 — 접근 토큰을 확인하세요");
-			}
+			if (res.status === 401) { handleUnauthorized(); return; }
 			if (!res.ok) { throw new Error("HTTP " + res.status); }
 			const json = await res.json();
 			state.data = json;
@@ -931,6 +928,29 @@
 		}
 	}
 
+	// A refused session is an auth problem, not an outage — saying "연결 실패" here sent the
+	// operator hunting for a dead server while the fix was a re-login. Drop the dead token so the
+	// header stops claiming we are signed in, stop the refresh timer from replaying the failure,
+	// and put the login button back so recovery needs no manual logout.
+	function handleUnauthorized() {
+		if (state.timer) { clearInterval(state.timer); state.timer = null; }
+		if (auth.mode === "google") {
+			const hadSession = !!auth.token;
+			auth.token = "";
+			auth.email = "";
+			writeStorage();
+			renderAuthArea();
+			setStatus("err", "로그인 필요");
+			showBanner(hadSession
+				? "로그인 세션이 만료되었습니다. 위의 Google 계정으로 다시 로그인해 주세요. (서버는 정상입니다)"
+				: "로그인이 필요합니다. 위의 Google 계정으로 로그인해 주세요.");
+		} else {
+			setStatus("err", "인증 실패");
+			showBanner("접근 토큰이 올바르지 않습니다. 상단의 접근 토큰을 확인해 주세요.");
+		}
+		if (!state.data) { state.data = demoData(); render(); }
+	}
+
 	async function onGoogleCredential(response) {
 		try {
 			const res = await fetch(baseUrl() + "/api/auth/login", {
@@ -944,6 +964,7 @@
 			auth.email = json.email;
 			writeStorage();
 			renderAuthArea();
+			applyAutoRefresh();  // handleUnauthorized() stopped it; a fresh session restores it
 			load();
 		} catch (err) {
 			setStatus("err", "로그인 실패: " + err.message);

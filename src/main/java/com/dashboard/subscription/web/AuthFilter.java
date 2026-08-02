@@ -1,7 +1,6 @@
 package com.dashboard.subscription.web;
 
 import java.io.IOException;
-import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -12,13 +11,13 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.dashboard.subscription.config.AuthProperties;
-import com.dashboard.subscription.domain.AuthUser;
 import com.dashboard.subscription.service.JwtService;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * API gate with three modes:
@@ -33,6 +32,7 @@ import jakarta.servlet.http.HttpServletResponse;
  * push requests cannot set headers). /api/health, /api/auth/login, /api/auth/config, and CORS
  * preflights stay open.
  */
+@Slf4j
 @Component
 public class AuthFilter extends OncePerRequestFilter {
 
@@ -72,12 +72,13 @@ public class AuthFilter extends OncePerRequestFilter {
 			return;
 		}
 		if (authProperties.isActive()) {
-			Optional<AuthUser> user = bearerUser(request);
-			if (user.isPresent()) {
-				request.setAttribute(USER_ATTRIBUTE, user.get());
+			JwtService.Verification verification = bearerVerification(request);
+			if (verification.valid()) {
+				request.setAttribute(USER_ATTRIBUTE, verification.user());
 				filterChain.doFilter(request, response);
 				return;
 			}
+			logRejection(request, verification);
 			reject(response, "login required");
 			return;
 		}
@@ -103,12 +104,22 @@ public class AuthFilter extends OncePerRequestFilter {
 		return false;
 	}
 
-	private Optional<AuthUser> bearerUser(HttpServletRequest request) {
+	private JwtService.Verification bearerVerification(HttpServletRequest request) {
 		String header = request.getHeader(HttpHeaders.AUTHORIZATION);
 		if (header == null || !header.startsWith(BEARER_PREFIX)) {
-			return Optional.empty();
+			return JwtService.Verification.refused(JwtService.Rejection.MISSING);
 		}
-		return jwtService.verify(header.substring(BEARER_PREFIX.length()));
+		return jwtService.inspect(header.substring(BEARER_PREFIX.length()));
+	}
+
+	/**
+	 * Every refusal used to look identical from the outside, so a lapsed session was
+	 * indistinguishable from an outage. Naming the reason — and, for an expired token, when it
+	 * lapsed — makes the next occurrence answerable from the request log alone.
+	 */
+	private void logRejection(HttpServletRequest request, JwtService.Verification verification) {
+		log.info("Session rejected: reason={} uri={} expiresAt={}",
+				verification.rejection(), request.getRequestURI(), verification.expiresAt());
 	}
 
 	private void reject(HttpServletResponse response, String message) throws IOException {

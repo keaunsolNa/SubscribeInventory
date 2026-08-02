@@ -5,7 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.Optional;
+import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,8 +68,8 @@ class AuthFilterGoogleModeTest {
 
 	@Test
 	void validSessionJwtGrantsAccess() throws Exception {
-		when(jwtService.verify("good-jwt"))
-				.thenReturn(Optional.of(new AuthUser("user-1", "user@example.com")));
+		when(jwtService.inspect("good-jwt")).thenReturn(JwtService.Verification.accepted(
+				new AuthUser("user-1", "user@example.com"), Instant.parse("2026-08-09T00:00:00Z")));
 
 		mockMvc.perform(get("/api/usage").header("Authorization", "Bearer good-jwt"))
 				.andExpect(status().isOk());
@@ -77,9 +77,19 @@ class AuthFilterGoogleModeTest {
 
 	@Test
 	void invalidJwtRejected() throws Exception {
-		when(jwtService.verify("bad-jwt")).thenReturn(Optional.empty());
+		when(jwtService.inspect("bad-jwt"))
+				.thenReturn(JwtService.Verification.refused(JwtService.Rejection.BAD_SIGNATURE));
 
 		mockMvc.perform(get("/api/usage").header("Authorization", "Bearer bad-jwt"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void expiredSessionIsStillRejected() throws Exception {
+		when(jwtService.inspect("stale-jwt")).thenReturn(
+				JwtService.Verification.expired(Instant.parse("2026-07-29T00:00:00Z")));
+
+		mockMvc.perform(get("/api/usage").header("Authorization", "Bearer stale-jwt"))
 				.andExpect(status().isUnauthorized());
 	}
 
