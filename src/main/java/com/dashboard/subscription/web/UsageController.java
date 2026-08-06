@@ -1,5 +1,8 @@
 package com.dashboard.subscription.web;
 
+import java.time.Clock;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
@@ -15,6 +18,7 @@ import com.dashboard.subscription.service.CachedUsageService;
 import com.dashboard.subscription.service.CredentialFingerprint;
 import com.dashboard.subscription.service.UsageHistoryStore;
 import com.dashboard.subscription.service.UsageHistoryStore.HistoryPoint;
+import com.dashboard.subscription.service.UsageHistoryStore.ProviderSpend;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -31,11 +35,13 @@ public class UsageController {
 
 	private final CachedUsageService cachedUsageService;
 	private final UsageHistoryStore usageHistoryStore;
+	private final Clock clock;
 
 	public UsageController(CachedUsageService cachedUsageService,
-			UsageHistoryStore usageHistoryStore) {
+			UsageHistoryStore usageHistoryStore, Clock clock) {
 		this.cachedUsageService = cachedUsageService;
 		this.usageHistoryStore = usageHistoryStore;
+		this.clock = clock;
 	}
 
 	@GetMapping("/usage")
@@ -76,6 +82,25 @@ public class UsageController {
 		Map<String, ApiCredentials> keys =
 				request == null || request.keys() == null ? Map.of() : request.keys();
 		return usageHistoryStore.recent(CredentialFingerprint.of(keys), HISTORY_DAYS);
+	}
+
+	/**
+	 * Balance consumed this UTC month, per provider. Only prepaid-balance providers appear here:
+	 * the ones that report a cumulative month-to-date cost already answer this exactly, and the
+	 * client has that live figure from {@code /api/usage}. Each entry carries its observed window
+	 * because history is only written while the dashboard is open, so a sparse month under-counts
+	 * and the client has to be able to show that rather than pass a gap off as zero spend.
+	 */
+	@PostMapping("/usage/monthly")
+	public MonthlySpendResponse monthlySpend(@RequestBody(required = false) UsageRequest request) {
+		Map<String, ApiCredentials> keys =
+				request == null || request.keys() == null ? Map.of() : request.keys();
+		YearMonth month = YearMonth.now(clock.withZone(ZoneOffset.UTC));
+		return new MonthlySpendResponse(month.toString(),
+				usageHistoryStore.monthlyConsumption(CredentialFingerprint.of(keys), month));
+	}
+
+	public record MonthlySpendResponse(String month, List<ProviderSpend> providers) {
 	}
 
 	@GetMapping("/health")

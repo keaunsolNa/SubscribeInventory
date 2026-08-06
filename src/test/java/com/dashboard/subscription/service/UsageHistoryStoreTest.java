@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.List;
 
@@ -81,6 +82,68 @@ class UsageHistoryStoreTest {
 		assertThat(entries.get(0).providerId()).isEqualTo("xai");
 		assertThat(entries.get(0).remaining()).isEqualTo(2.8d);
 		assertThat(entries.get(0).cost()).isNull();
+	}
+
+	private UsageHistoryStore.HistoryPoint point(String at,
+			UsageHistoryStore.ProviderPoint... entries) {
+		return new UsageHistoryStore.HistoryPoint(Instant.parse(at), List.of(entries));
+	}
+
+	private UsageHistoryStore.ProviderPoint balance(String id, Double remaining) {
+		return new UsageHistoryStore.ProviderPoint(id, remaining, null);
+	}
+
+	@Test
+	void consumptionSumsBalanceDecreases() {
+		List<UsageHistoryStore.ProviderSpend> spend = UsageHistoryStore.consumption(List.of(
+				point("2026-08-01T00:00:00Z", balance("xai", 50.0d)),
+				point("2026-08-02T00:00:00Z", balance("xai", 42.0d)),
+				point("2026-08-03T00:00:00Z", balance("xai", 40.5d))));
+
+		assertThat(spend).hasSize(1);
+		assertThat(spend.get(0).providerId()).isEqualTo("xai");
+		assertThat(spend.get(0).consumed()).isEqualTo(9.5d);
+		assertThat(spend.get(0).samples()).isEqualTo(3);
+		assertThat(spend.get(0).from()).isEqualTo(Instant.parse("2026-08-01T00:00:00Z"));
+		assertThat(spend.get(0).to()).isEqualTo(Instant.parse("2026-08-03T00:00:00Z"));
+	}
+
+	@Test
+	void topUpIsSkippedRatherThanSubtracted() {
+		// 50 -> 40 spends 10, the refill to 90 is not income, then 90 -> 85 spends 5.
+		List<UsageHistoryStore.ProviderSpend> spend = UsageHistoryStore.consumption(List.of(
+				point("2026-08-01T00:00:00Z", balance("fal", 50.0d)),
+				point("2026-08-02T00:00:00Z", balance("fal", 40.0d)),
+				point("2026-08-03T00:00:00Z", balance("fal", 90.0d)),
+				point("2026-08-04T00:00:00Z", balance("fal", 85.0d))));
+
+		assertThat(spend.get(0).consumed()).isEqualTo(15.0d);
+	}
+
+	@Test
+	void consumptionTracksProvidersIndependentlyAndIgnoresCostOnlyEntries() {
+		List<UsageHistoryStore.ProviderSpend> spend = UsageHistoryStore.consumption(List.of(
+				point("2026-08-01T00:00:00Z", balance("xai", 10.0d), balance("fal", 8.0d),
+						new UsageHistoryStore.ProviderPoint("openai", null, 18.42d)),
+				point("2026-08-02T00:00:00Z", balance("xai", 7.0d), balance("fal", 8.0d),
+						new UsageHistoryStore.ProviderPoint("openai", null, 25.10d))));
+
+		assertThat(spend).extracting(UsageHistoryStore.ProviderSpend::providerId)
+				.containsExactlyInAnyOrder("xai", "fal");
+		assertThat(spend).filteredOn(s -> s.providerId().equals("xai"))
+				.first().extracting(UsageHistoryStore.ProviderSpend::consumed).isEqualTo(3.0d);
+		assertThat(spend).filteredOn(s -> s.providerId().equals("fal"))
+				.first().extracting(UsageHistoryStore.ProviderSpend::consumed).isEqualTo(0.0d);
+	}
+
+	@Test
+	void consumptionOfNothingIsEmpty() {
+		assertThat(UsageHistoryStore.consumption(List.of())).isEmpty();
+	}
+
+	@Test
+	void inactiveStoreHasNoMonthlyConsumption() {
+		assertThat(store("").monthlyConsumption("fingerprint", YearMonth.of(2026, 8))).isEmpty();
 	}
 
 	@Test
