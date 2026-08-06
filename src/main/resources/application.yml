@@ -72,3 +72,9 @@ dashboard:
       enabled: true
       base-url: https://api.fal.ai
       api-key: ${FAL_API_KEY:}
+    kimi:
+      enabled: true
+      # platform.kimi.ai and platform.kimi.com issue separate, non-interchangeable keys —
+      # a .com key returns 401 here. Point base-url at that origin's API host if you hold one.
+      base-url: https://api.moonshot.ai
+      api-key: ${KIMI_API_KEY:}
