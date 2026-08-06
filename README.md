@@ -3,7 +3,8 @@
 [![Deploy](https://github.com/keaunsolNa/SubscribeInventory/actions/workflows/deploy.yml/badge.svg)](https://github.com/keaunsolNa/SubscribeInventory/actions/workflows/deploy.yml)
 
 **8개 AI 서비스의 잔여 크레딧 · 할당량 · 이번 달 사용액을 한 화면에서.**
-키는 브라우저에만 저장되고(BYOK), 잔액이 임계값 아래로 내려가면 Slack으로 알려줍니다.
+이번 달 지출 구성과 "무엇이 먼저 바닥나나"까지 계산합니다. 키는 브라우저에만 저장되고(BYOK),
+잔액이 임계값 아래로 내려가면 Slack으로 알려줍니다.
 
 **▶ 바로 사용하기: https://subscribeinventory.web.app** (무료, Google 로그인)
 
@@ -16,7 +17,13 @@
 - **BYOK (Bring Your Own Key)** — 키는 브라우저 localStorage에만 저장. 서버는 요청별로 중계만
   하고 저장·로깅하지 않습니다. 코드가 공개되어 있으니 직접 확인하세요.
 - **추이 스파크라인 + 소진 예측** — 시간별 히스토리를 쌓아 최근 7일 추이와
-  "이 속도면 N일 후 소진"을 카드에 표시
+  "이 속도면 N일 후 소진"을 카드에 표시. 잔액 그래프는 0을 기준선으로 그리므로
+  선의 높이가 곧 남은 양이고, 변화가 미미하면 추세로 부풀리지 않습니다.
+- **이번 달 지출 구성** — 프로바이더별 지출 비중. 후불 서비스는 API가 주는 월 누적값을
+  그대로 쓰고, 선불 서비스는 관측된 잔액 감소분을 합산하므로 정확도가 다른 항목을 구분해
+  표시합니다. **단위가 다른 서비스(크레딧·문자 수)는 합산에서 제외하고 그 사실을 화면에 밝힙니다.**
+- **소진 전망** — 무엇이 먼저 바닥나는지 순위. **"남은 일수"로 정규화**하기 때문에
+  크레딧·문자 수·달러가 한 축에서 비교됩니다. 두 패널 모두 표 뷰를 제공합니다.
 - **Slack 잔여량 알림** — 웹훅+임계값 구독 시 매시 자동 점검. 구독 정보는 AES-256-GCM 암호화
   저장(키 지문 태깅으로 무중단 키 회전 지원)
 - **서비스별 잔액 확인 가이드** — 각 서비스의 콘솔·API 확인법과 키 스코프 함정 정리:
@@ -48,7 +55,10 @@
 | Stability AI | `GET /v1/user/balance` (Bearer) | 크레딧 | 일반 키 가능 |
 | fal.ai | `GET /v1/account/billing?expand=credits` (`Key` 스킴) | 크레딧 | **ADMIN 스코프 키 전용** (기본 키는 403) |
 
-> Gemini·Groq·Perplexity·Mistral 등은 사용량/잔액 조회 공개 API가 없어 추가 불가 (2026-07 기준).
+> **아직 넣지 못한 서비스** (2026-08 기준) — Gemini·Groq는 잔액/사용량 조회 공개 API를 찾지
+> 못했습니다. Perplexity는 브라우저 쿠키 세션이 필요한 비공개 엔드포인트뿐이라 BYOK 구조에
+> 맞지 않고, Mistral은 콘솔 관리 API로 월 지출만 조회됩니다. Kimi(Moonshot)는 공식 잔액 API
+> (`GET /v1/users/me/balance`)가 있어 추가 검토 중입니다.
 > 각 함정의 상세 설명은 [서비스별 가이드](https://subscribeinventory.web.app/guides/)에 있습니다.
 
 ## API
@@ -56,6 +66,9 @@
 - `GET /api/health` — 헬스체크 (항상 개방)
 - `POST /api/usage` — BYOK 조회: `{"keys":{"xai":{"apiKey":"...","teamId":"..."}, ...}}`
 - `POST /api/usage/history` — 최근 7일 시간별 히스토리 (스파크라인용)
+- `POST /api/usage/monthly` — 이번 달 프로바이더별 잔액 소비량. 관측 구간과 샘플 수를 함께
+  반환하므로 기록이 없는 구간을 "지출 0"으로 오해하지 않습니다. 월 누적 지출을 그대로 주는
+  후불 서비스(OpenAI·Anthropic)는 여기서 계산하지 않습니다 — 라이브 값이 더 정확합니다.
 - `POST /api/alerts/subscriptions` / `DELETE .../{id}` — Slack 알림 구독·해지
   (payload 전체 AES-256-GCM 암호화, 웹훅은 `hooks.slack.com` 프리픽스만 허용)
 - `GET /` — 대시보드, `GET /guides/` — 서비스별 가이드
@@ -82,7 +95,7 @@ ELEVENLABS_API_KEY=... OPENAI_ADMIN_KEY=... mvn spring-boot:run
 
 ## 배포
 
-main에 푸시하면 GitHub Actions가 테스트(108개) 후 Workload Identity Federation(키리스)으로
+main에 푸시하면 GitHub Actions가 테스트(113개) 후 Workload Identity Federation(키리스)으로
 Cloud Run에 자동 배포합니다 (`.github/workflows/deploy.yml`). 수동 배포:
 
 ```bash
