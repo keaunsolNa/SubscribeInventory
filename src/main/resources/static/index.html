@@ -554,13 +554,18 @@
 	const numFmt = new Intl.NumberFormat("ko-KR");
 	const num1 = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 });
 
+	// Not every provider bills in money. Stability quotes "credits", which is not an ISO currency, so
+	// Intl throws and the old fallback pinned a dollar sign to it — 25 credits rendered as $25, right
+	// next to a panel explaining that credits are excluded for not being dollars. Non-currency units
+	// keep their own name instead.
 	function money(value, currency) {
 		if (value == null) { return "—"; }
 		const cur = (currency || "USD").toUpperCase();
 		try {
 			return new Intl.NumberFormat("en-US", { style: "currency", currency: cur, maximumFractionDigits: 2 }).format(value);
 		} catch (e) {
-			return "$" + num1.format(value);
+			const unit = (currency || "").trim();
+			return num1.format(value) + (unit ? " " + unit : "");
 		}
 	}
 
@@ -823,6 +828,7 @@
 	const SERIES_SLOTS = ["var(--series-1)", "var(--series-2)", "var(--series-3)",
 		"var(--series-4)", "var(--series-5)", "var(--series-6)"];
 	const DONUT_MAX = 6;
+	const BURN_AXIS_DAYS = 90;
 
 	/**
 	 * This month's spend per provider, in USD only.
@@ -857,6 +863,11 @@
 				excluded.push(p.displayName);
 			}
 		});
+		// A provider that spent nothing is not a slice. Leaving it in produced a legend row reading
+		// "$0.00 0%" beside a zero-length arc — noise that made the chart look busier than the data is.
+		const spending = rows.filter(function (row) { return row.value > 0; });
+		rows.length = 0;
+		Array.prototype.push.apply(rows, spending);
 		rows.sort(function (a, b) { return b.value - a.value; });
 		let shown = rows;
 		if (rows.length > DONUT_MAX) {
@@ -922,7 +933,15 @@
 					+ '<td class="num">' + num1.format(spend.total > 0 ? (row.value / spend.total) * 100 : 0) + '%</td>'
 					+ '<td>' + (row.exact ? "확정" : "관측 " + (row.samples || 0) + "회") + '</td></tr>';
 			}).join("") + '</tbody></table>';
-		const chart = '<div class="donut-row">' + donutSvg(spend.rows, spend.total) + legend + '</div>'
+		// One contributor is not a composition. A ring drawn as a single 100% arc says nothing the
+		// number does not already say, so below two slices the panel becomes the number.
+		const body = spend.rows.length < 2
+			? '<div class="hero-label">' + escapeHtml(spend.rows[0].name)
+				+ (spend.rows[0].exact ? "" : " *") + '</div>'
+				+ '<div class="hero">' + escapeHtml(money(spend.rows[0].value, "USD")) + '</div>'
+				+ '<div class="muted-note" style="margin-top:6px;">이번 달 USD 지출이 잡힌 서비스는 여기 한 곳입니다</div>'
+			: '<div class="donut-row">' + donutSvg(spend.rows, spend.total) + legend + '</div>';
+		const chart = body
 			+ notes.map(function (n) { return '<div class="muted-note" style="margin-top:8px;">' + escapeHtml(n) + '</div>'; }).join("");
 		return panelHtml("spend", "이번 달 지출 구성", month + " · USD 기준", chart, table);
 	}
@@ -957,11 +976,15 @@
 	function burndownPanel() {
 		const rows = burndownRows();
 		if (rows.length === 0) {
-			return panelHtml("burn", "소진 임박 순위", "잔액이 줄고 있는 서비스",
+			return panelHtml("burn", "소진 전망", "잔액이 줄고 있는 서비스",
 				'<div class="muted-note">아직 소진 속도를 계산할 만큼 기록이 쌓이지 않았습니다. 잔액이 실제로 줄어드는 구간이 두 번 이상 관측되어야 표시됩니다.</div>',
 				null);
 		}
-		const scale = Math.max(30, rows[rows.length - 1].days);
+		// Scaling to the longest horizon let a single 172-day outlier squash a 23-day item into a
+		// stub. Past three months the exact figure stops mattering here, so the axis stops at 90 days
+		// and the label keeps the real number. The cap is a ceiling, not a floor: when everything
+		// already fits inside 90 days the axis still shrinks to the data.
+		const scale = Math.min(BURN_AXIS_DAYS, Math.max(30, rows[rows.length - 1].days));
 		const bars = rows.map(function (row) {
 			const tone = burnTone(row.days);
 			const width = Math.max(2, Math.min(100, (row.days / scale) * 100));
@@ -977,7 +1000,7 @@
 					+ '<td class="num">' + escapeHtml(burnLabel(row.days)) + '</td>'
 					+ '<td>' + escapeHtml(tone.icon + " " + tone.label) + '</td></tr>';
 			}).join("") + '</tbody></table>';
-		return panelHtml("burn", "소진 임박 순위", "최근 72시간 소비 속도 기준 · 단위 무관", bars, table);
+		return panelHtml("burn", "소진 전망", "최근 72시간 소비 속도 기준 · 단위 무관 · 막대는 90일까지", bars, table);
 	}
 
 	function panelHtml(id, title, sub, chart, table) {
