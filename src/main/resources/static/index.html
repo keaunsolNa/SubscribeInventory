@@ -948,7 +948,15 @@
 			setStatus("err", "인증 실패");
 			showBanner("접근 토큰이 올바르지 않습니다. 상단의 접근 토큰을 확인해 주세요.");
 		}
-		if (!state.data) { state.data = demoData(); render(); }
+		// Filling the cards keeps the page from looking broken, but demoData() returns plausible
+		// dollar amounts with OK badges — an arriving visitor has no way to tell them from somebody's
+		// real balances. Say it in the status line, or the first thing a stranger sees is a number
+		// we made up.
+		if (!state.data) {
+			state.data = demoData();
+			setStatus("err", (auth.mode === "google" ? "로그인 필요" : "인증 실패") + " · 아래는 샘플 데이터");
+			render();
+		}
 	}
 
 	async function onGoogleCredential(response) {
