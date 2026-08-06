@@ -581,16 +581,31 @@
 	}
 
 	// ---- Trend sparkline + burn-rate estimate ----
-	function sparklineSvg(points) {
+	// The y-scale used to run min..max of the series itself, so $100.00 -> $99.99 drew the same
+	// full-height plunge as $100 -> $1. With no axis and no labels a reader could not tell the two
+	// apart. Balance is anchored at zero because zero is the event the reader cares about, and a
+	// series that barely moves is now drawn flat instead of being amplified into a trend.
+	const FLAT_RATIO = 0.01;
+
+	function sparkScale(values, zeroBased) {
+		const dataMin = Math.min.apply(null, values);
+		const dataMax = Math.max.apply(null, values);
+		const magnitude = Math.max(Math.abs(dataMax), Math.abs(dataMin), 1e-9);
+		const flat = (dataMax - dataMin) / magnitude < FLAT_RATIO;
+		const lo = zeroBased ? Math.min(0, dataMin) : dataMin;
+		const hi = zeroBased ? Math.max(0, dataMax) : dataMax;
+		return { lo: lo, hi: hi, span: (hi - lo) || 1, flat: flat };
+	}
+
+	function sparklineSvg(points, zeroBased) {
 		const values = points.map(function (p) { return p.v; });
-		const min = Math.min.apply(null, values);
-		const max = Math.max.apply(null, values);
-		const span = (max - min) || 1;
+		const scale = sparkScale(values, zeroBased);
 		const t0 = points[0].t;
 		const tSpan = (points[points.length - 1].t - t0) || 1;
 		const coords = points.map(function (p) {
 			const x = ((p.t - t0) / tSpan) * 100;
-			const y = 26 - ((p.v - min) / span) * 22;
+			// A flat series sits mid-box: drawing it at an edge would read as "at the limit".
+			const y = scale.flat ? 14 : 26 - ((p.v - scale.lo) / scale.span) * 22;
 			return x.toFixed(1) + "," + y.toFixed(1);
 		}).join(" ");
 		return '<svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">'
@@ -611,6 +626,9 @@
 		const burnPerDay = ((first.r - last.r) / hours) * 24;
 		if (burnPerDay <= 0.0001) { return ""; }
 		const days = current / burnPerDay;
+		// A barely-moving balance extrapolates to absurd horizons ("약 40000일 후 소진"), which reads
+		// as a broken number rather than a forecast. Past a year, 72h of samples says nothing useful.
+		if (days > 365) { return ""; }
 		const label = days < 1 ? "1일 미만" : "약 " + Math.round(days) + "일";
 		return '<div class="muted-note">이 속도면 ' + label + ' 후 소진 예상</div>';
 	}
@@ -622,8 +640,19 @@
 			.filter(function (p) { return p[metric] != null; })
 			.map(function (p) { return { t: p.t, v: p[metric] }; });
 		if (points.length < 2) { return ""; }
-		let html = '<div class="spark-wrap">' + sparklineSvg(points)
-			+ '<div class="spark-label">최근 7일 추이</div></div>';
+		// Balance/quota are anchored at zero; cumulative cost is not, so it keeps its own scale and
+		// earns endpoint labels instead — without them the line's height means nothing.
+		const zeroBased = provider.metricType !== "COST";
+		const values = points.map(function (p) { return p.v; });
+		const scale = sparkScale(values, zeroBased);
+		const fmt = provider.metricType === "QUOTA"
+			? function (v) { return compact(v); }
+			: function (v) { return money(v, provider.currency); };
+		const label = scale.flat
+			? "최근 7일 · 변화 거의 없음"
+			: "최근 7일 · " + fmt(values[0]) + " → " + fmt(values[values.length - 1]);
+		let html = '<div class="spark-wrap">' + sparklineSvg(points, zeroBased)
+			+ '<div class="spark-label">' + escapeHtml(label) + '</div></div>';
 		if (provider.metricType === "BALANCE") {
 			html += burnNote(provider.providerId, provider.remaining);
 		}
