@@ -258,8 +258,12 @@
 	.keys-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
 	.keys-grid input { width: 100%; }
 	.keys-note { font-size: 12px; color: var(--text-muted); margin-top: 10px; line-height: 1.6; }
-	.spark-wrap { margin-top: 10px; }
+	.spark-wrap { margin-top: 10px; position: relative; }
 	.spark { display: block; width: 100%; height: 28px; }
+	/* The line is 1.5px wide; the hit area is the whole plot so no one has to land on it. */
+	.spark-hit { cursor: crosshair; }
+	.spark-cursor { opacity: 0; transition: opacity .1s; }
+	.spark-wrap:hover .spark-cursor, .spark-wrap:focus-within .spark-cursor { opacity: 1; }
 	.spark-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
 	/* ---- Monthly statistics ---- */
@@ -481,6 +485,7 @@
 		showDisabled: false,
 		history: {},     // providerId -> [{t, r, c}] hourly points (server-side, last 7 days)
 		monthly: null,   // { month, providers: [{providerId, consumed, from, to, samples}] }
+		live: false,     // true only when state.data came from a successful fetch, not demoData()
 		statsTable: {}   // panel id -> true when the reader switched that chart to its table view
 	};
 
@@ -644,6 +649,8 @@
 	}
 
 	// ---- Trend sparkline + burn-rate estimate ----
+	// providerId -> the exact series, scale and formatter the plot was drawn with.
+	const sparkSeries = {};
 	// The y-scale used to run min..max of the series itself, so $100.00 -> $99.99 drew the same
 	// full-height plunge as $100 -> $1. With no axis and no labels a reader could not tell the two
 	// apart. Balance is anchored at zero because zero is the event the reader cares about, and a
@@ -660,20 +667,32 @@
 		return { lo: lo, hi: hi, span: (hi - lo) || 1, flat: flat };
 	}
 
-	function sparklineSvg(points, zeroBased) {
+	function sparkY(value, scale) {
+		// A flat series sits mid-box: drawing it at an edge would read as "at the limit".
+		return scale.flat ? 14 : 26 - ((value - scale.lo) / scale.span) * 22;
+	}
+
+	function sparklineSvg(points, zeroBased, summary) {
 		const values = points.map(function (p) { return p.v; });
 		const scale = sparkScale(values, zeroBased);
 		const t0 = points[0].t;
 		const tSpan = (points[points.length - 1].t - t0) || 1;
 		const coords = points.map(function (p) {
 			const x = ((p.t - t0) / tSpan) * 100;
-			// A flat series sits mid-box: drawing it at an edge would read as "at the limit".
-			const y = scale.flat ? 14 : 26 - ((p.v - scale.lo) / scale.span) * 22;
-			return x.toFixed(1) + "," + y.toFixed(1);
+			return x.toFixed(1) + "," + sparkY(p.v, scale).toFixed(1);
 		}).join(" ");
-		return '<svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">'
+		// The plot was aria-hidden decoration. It now carries the same summary the label shows, and
+		// a full-width hit rect so the crosshair does not require landing on a 1.5px line.
+		return '<svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none" role="img"'
+			+ ' aria-label="' + escapeHtml(summary || "") + '">'
 			+ '<polyline points="' + coords + '" fill="none" stroke="var(--series-1)"'
-			+ ' stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>';
+			+ ' stroke-width="1.5" vector-effect="non-scaling-stroke"/>'
+			+ '<g class="spark-cursor">'
+			+ '<line x1="0" y1="0" x2="0" y2="28" stroke="var(--baseline)" stroke-width="1"'
+			+ ' vector-effect="non-scaling-stroke"/>'
+			+ '<circle cx="0" cy="0" r="2.5" fill="var(--series-1)" stroke="var(--surface-2)"'
+			+ ' stroke-width="1.5" vector-effect="non-scaling-stroke"/></g>'
+			+ '<rect class="spark-hit" x="0" y="0" width="100" height="28" fill="transparent"/></svg>';
 	}
 
 	// Linear burn over the last ~72h of balance points; null unless the balance is actually shrinking.
@@ -722,7 +741,11 @@
 		const label = scale.flat
 			? "최근 7일 · 변화 거의 없음"
 			: "최근 7일 · " + fmt(values[0]) + " → " + fmt(values[values.length - 1]);
-		let html = '<div class="spark-wrap">' + sparklineSvg(points, zeroBased)
+		// The hover layer reads from here rather than re-deriving the series, so the crosshair can
+		// never land on a value the line was not drawn from.
+		sparkSeries[provider.providerId] = { points: points, scale: scale, fmt: fmt };
+		let html = '<div class="spark-wrap" data-spark="' + escapeHtml(provider.providerId) + '">'
+			+ sparklineSvg(points, zeroBased, provider.displayName + " " + label)
 			+ '<div class="spark-label">' + escapeHtml(label) + '</div></div>';
 		if (provider.metricType === "BALANCE") {
 			html += burnNote(provider.providerId, provider.remaining);
@@ -1034,6 +1057,85 @@
 		bindChartTips(host);
 	}
 
+	/**
+	 * Nearest-point crosshair for the card sparklines.
+	 *
+	 * The plot used to be aria-hidden decoration with no way to read any value off it. The series is
+	 * unevenly sampled — history is only written while the dashboard is open — so the lookup is by
+	 * time fraction rather than by index, and it reads the same points the line was drawn from so
+	 * the crosshair can never sit on a value the plot does not contain.
+	 */
+	function bindSparkTips(host) {
+		const tip = document.getElementById("chartTip");
+		if (!tip) { return; }
+		host.querySelectorAll(".spark-wrap[data-spark]").forEach(function (wrap) {
+			const series = sparkSeries[wrap.getAttribute("data-spark")];
+			const svg = wrap.querySelector("svg.spark");
+			if (!series || !svg || series.points.length < 2) { return; }
+			const line = svg.querySelector(".spark-cursor line");
+			const dot = svg.querySelector(".spark-cursor circle");
+			const pts = series.points;
+			const t0 = pts[0].t;
+			const tSpan = (pts[pts.length - 1].t - t0) || 1;
+
+			wrap.addEventListener("mousemove", function (event) {
+				const rect = svg.getBoundingClientRect();
+				if (!rect.width) { return; }
+				const frac = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+				const target = t0 + frac * tSpan;
+				let nearest = pts[0];
+				for (let i = 1; i < pts.length; i++) {
+					if (Math.abs(pts[i].t - target) < Math.abs(nearest.t - target)) { nearest = pts[i]; }
+				}
+				const x = ((nearest.t - t0) / tSpan) * 100;
+				line.setAttribute("x1", x);
+				line.setAttribute("x2", x);
+				dot.setAttribute("cx", x);
+				dot.setAttribute("cy", sparkY(nearest.v, series.scale));
+				tip.textContent = fmtDateTime(new Date(nearest.t).toISOString())
+					+ " · " + series.fmt(nearest.v);
+				tip.classList.add("show");
+				tip.style.left = Math.min(event.clientX + 14, window.innerWidth - tip.offsetWidth - 8) + "px";
+				tip.style.top = (event.clientY + 16) + "px";
+			});
+			wrap.addEventListener("mouseleave", function () { tip.classList.remove("show"); });
+		});
+	}
+
+	/**
+	 * Puts the most urgent figure in the tab title.
+	 *
+	 * A browser tab is the only always-visible surface a web dashboard gets, which is where native
+	 * menu-bar trackers have the advantage. This closes part of that gap for anyone who leaves the
+	 * tab open — soonest depletion if a burn rate is known, otherwise the lowest dollar balance.
+	 *
+	 * Only ever runs on live data. The unauthenticated page is filled with sample figures, and a
+	 * crawler rendering it would otherwise index "$42.75 · ..." as this page's title.
+	 */
+	const BASE_TITLE = document.title;
+
+	function updateTitle() {
+		if (!state.live || !state.data) {
+			document.title = BASE_TITLE;
+			return;
+		}
+		const soonest = burndownRows()[0];
+		if (soonest) {
+			document.title = burnLabel(soonest.days) + " 남음 · SubscribeInventory";
+			return;
+		}
+		const usd = (state.data.providers || []).filter(function (p) {
+			return p.status === "OK" && p.metricType === "BALANCE" && p.remaining != null
+				&& (p.currency || "").toUpperCase() === "USD";
+		});
+		if (usd.length) {
+			const lowest = usd.reduce(function (a, b) { return b.remaining < a.remaining ? b : a; });
+			document.title = money(lowest.remaining, "USD") + " · SubscribeInventory";
+			return;
+		}
+		document.title = BASE_TITLE;
+	}
+
 	// Tooltips enhance; they never gate. Every value here is also in the legend and in the table
 	// view, so a reader who cannot hover loses nothing.
 	function bindChartTips(host) {
@@ -1056,6 +1158,7 @@
 		if (!data) { return; }
 		renderSummary(data);
 		renderStats();
+		updateTitle();
 		const providers = data.providers || [];
 		// Cards default to configured-only; the checkbox reveals DISABLED services so users can
 		// discover what else the dashboard supports.
@@ -1071,6 +1174,7 @@
 		} else {
 			document.getElementById("cards").innerHTML = visible.map(renderCard).join("");
 		}
+		bindSparkTips(document.getElementById("cards"));
 
 		document.querySelectorAll('input[data-fee]').forEach(function (input) {
 			input.addEventListener("change", function () {
@@ -1111,6 +1215,7 @@
 		showBanner("");
 		if (state.mode === "demo" || !state.backendUrl) {
 			state.data = demoData();
+			state.live = false;
 			setStatus("demo", "데모 모드 (샘플 데이터)");
 			render();
 			return;
@@ -1135,6 +1240,7 @@
 			if (!res.ok) { throw new Error("HTTP " + res.status); }
 			const json = await res.json();
 			state.data = json;
+			state.live = true;
 			setStatus("live", "실시간 · " + fmtDateTime(json.generatedAt));
 			render();
 			loadHistory();
@@ -1142,7 +1248,7 @@
 		} catch (err) {
 			setStatus("err", "연결 실패");
 			showBanner("백엔드 연결에 실패했습니다 (" + err.message + "). 주소·CORS·서버 상태를 확인하세요. 아래는 마지막 표시본입니다.");
-			if (!state.data) { state.data = demoData(); render(); }
+			if (!state.data) { state.data = demoData(); state.live = false; render(); }
 		}
 	}
 
@@ -1301,6 +1407,7 @@
 		// we made up.
 		if (!state.data) {
 			state.data = demoData();
+			state.live = false;
 			setStatus("err", (auth.mode === "google" ? "로그인 필요" : "인증 실패") + " · 아래는 샘플 데이터");
 			render();
 		}
