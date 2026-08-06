@@ -17,6 +17,15 @@
 	<name>subscription-dashboard-api</name>
 	<description>Aggregates remaining quota and spend across subscription-based AI providers</description>
 
+	<licenses>
+		<license>
+			<name>Elastic License 2.0</name>
+			<url>https://www.elastic.co/licensing/elastic-license</url>
+			<distribution>repo</distribution>
+			<comments>Source-available. Providing this software to third parties as a hosted or managed service is not permitted.</comments>
+		</license>
+	</licenses>
+
 	<properties>
 		<java.version>21</java.version>
 		<mockwebserver.version>4.12.0</mockwebserver.version>

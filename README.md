@@ -82,7 +82,7 @@ ELEVENLABS_API_KEY=... OPENAI_ADMIN_KEY=... mvn spring-boot:run
 
 ## 배포
 
-main에 푸시하면 GitHub Actions가 테스트(100개) 후 Workload Identity Federation(키리스)으로
+main에 푸시하면 GitHub Actions가 테스트(108개) 후 Workload Identity Federation(키리스)으로
 Cloud Run에 자동 배포합니다 (`.github/workflows/deploy.yml`). 수동 배포:
 
 ```bash
@@ -95,5 +95,14 @@ gcloud run deploy subscribe-inventory --source . --region asia-northeast3 --allo
 
 ## 라이선스
 
-소스는 투명성(키를 다루는 서비스의 신뢰)을 위해 공개되어 있습니다.
-별도 허가 없는 상업적 재사용·재배포는 허용되지 않습니다. © keaunsolNa
+[Elastic License 2.0](LICENSE) (SPDX: `Elastic-2.0`) — © keaunsolNa
+
+소스는 투명성(키를 다루는 서비스의 신뢰)을 위해 공개돼 있습니다. 열람·수정·재배포와
+직접 셀프호스팅해서 쓰는 것 모두 자유롭게 하셔도 됩니다. 다만 **이 소프트웨어를 제3자에게
+관리형(호스팅) 서비스로 제공하는 것**과 라이선스·저작권 고지를 제거하는 것은 허용되지 않습니다.
+
+OSI 공인 오픈소스 라이선스는 아닌 source-available 라이선스입니다.
+
+> **License:** Source-available under the [Elastic License 2.0](LICENSE). You may use, modify,
+> redistribute, and self-host this software freely. You may **not** provide it to third parties
+> as a hosted or managed service. Not an OSI-approved open source license.
