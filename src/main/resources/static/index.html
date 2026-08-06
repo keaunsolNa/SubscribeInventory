@@ -191,6 +191,11 @@
 	button.primary:hover { filter: brightness(1.05); }
 	input { cursor: text; }
 	label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+	.field-name { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+	.key-help { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px;
+		border: 1px solid var(--baseline); border-radius: 50%; font-size: 9.5px; line-height: 1;
+		color: var(--text-muted); cursor: help; flex: none; user-select: none; }
+	.key-help:hover { color: var(--text-secondary); border-color: var(--text-muted); }
 
 	.config {
 		display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
@@ -369,11 +374,14 @@
 				<input type="password" data-key="openrouter.apiKey" placeholder="sk-or-..." autocomplete="off"></label>
 			<label class="field">Stability AI API Key
 				<input type="password" data-key="stability.apiKey" placeholder="sk-..." autocomplete="off"></label>
-			<label class="field">fal.ai Admin Key (ADMIN 스코프로 발급)
+			<label class="field"><span class="field-name">fal.ai Admin Key
+					<span class="key-help" data-tip="ADMIN 스코프로 발급한 키만 동작합니다. 기본 API 키는 403이 납니다." aria-label="ADMIN 스코프로 발급한 키만 동작합니다">?</span></span>
 				<input type="password" data-key="fal.apiKey" placeholder="key_id:key_secret" autocomplete="off"></label>
-			<label class="field">Kimi (Moonshot) API Key (platform.kimi.ai 발급)
+			<label class="field"><span class="field-name">Kimi (Moonshot) API Key
+					<span class="key-help" data-tip="platform.kimi.ai에서 발급한 키를 넣으세요. .com에서 발급한 키는 호환되지 않아 401이 납니다." aria-label="platform.kimi.ai에서 발급한 키만 호환됩니다">?</span></span>
 				<input type="password" data-key="kimi.apiKey" placeholder="sk-..." autocomplete="off"></label>
-			<label class="field">SiliconFlow API Key (.com 계정 = USD, .cn 계정 = CNY)
+			<label class="field"><span class="field-name">SiliconFlow API Key
+					<span class="key-help" data-tip=".com 계정 키는 USD, .cn 계정 키는 CNY로 표시됩니다. 두 사이트는 계정·키가 분리되어 있습니다." aria-label=".com 계정은 USD, .cn 계정은 CNY로 표시됩니다">?</span></span>
 				<input type="password" data-key="siliconflow.apiKey" placeholder="sk-..." autocomplete="off"></label>
 		</div>
 		<div class="keys-note">키는 이 브라우저(localStorage)에만 저장됩니다. 조회할 때마다 요청에 실려 백엔드가 각 서비스로
@@ -1600,6 +1608,8 @@
 		}
 	});
 	renderAlertPanel();
+	// The key panel's help dots use the same tooltip layer as the charts. Static markup, bound once.
+	bindChartTips(document.getElementById("keysPanel"));
 	if (stored.accessToken) {
 		state.accessToken = stored.accessToken;
 		document.getElementById("accessToken").value = stored.accessToken;
