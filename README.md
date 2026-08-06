@@ -13,7 +13,7 @@
 ## 특징
 
 - **10개 서비스 통합 조회** — ElevenLabs · xAI(Grok) · OpenAI · Anthropic(Claude) · DeepSeek ·
-  OpenRouter · Stability AI · fal.ai · Kimi(Moonshot) · SiliconFlow
+  OpenRouter · Stability AI · fal.ai · Kimi(Moonshot) · SiliconFlow (전부 실키로 응답 스키마 검증)
 - **BYOK (Bring Your Own Key)** — 키는 브라우저 localStorage에만 저장. 서버는 요청별로 중계만
   하고 저장·로깅하지 않습니다. 코드가 공개되어 있으니 직접 확인하세요.
 - **추이 스파크라인 + 소진 예측** — 시간별 히스토리를 쌓아 최근 7일 추이와
@@ -54,12 +54,9 @@
 | OpenRouter | `GET /api/v1/credits` (Bearer) | 크레딧 | `total_credits − total_usage` |
 | Stability AI | `GET /v1/user/balance` (Bearer) | 크레딧 | 일반 키 가능 |
 | fal.ai | `GET /v1/account/billing?expand=credits` (`Key` 스킴) | 크레딧 | **ADMIN 스코프 키 전용** (기본 키는 403) |
-| Kimi (Moonshot) | `GET /v1/users/me/balance` (Bearer) | 선불 잔액 | `available_balance` 기준 — `cash_balance`는 음수 가능. `platform.kimi.ai`/`.com` 키 비호환 |
-| SiliconFlow | `GET /v1/user/info` (Bearer) | 선불 잔액 | `totalBalance`, 문자열. **응답에 통화 없음** — `.cn`=CNY / `.com`=USD |
+| Kimi (Moonshot) | `GET /v1/users/me/balance` (Bearer) | 선불 잔액 | 일반 키 가능. `available_balance` 기준 — `cash_balance`는 음수 가능. `platform.kimi.ai`/`.com` 키 비호환 |
+| SiliconFlow | `GET /v1/user/info` (Bearer) | 선불 잔액 | 일반 키 가능. `totalBalance`, 문자열. **응답에 통화 없음** — `.cn`=CNY / `.com`=USD |
 
-> 앞의 8개는 실제 키로 응답 스키마를 검증했습니다. Kimi·SiliconFlow는 공식 문서 기준으로
-> 구현했고 실키 검증은 아직입니다.
->
 > **아직 넣지 못한 서비스** (2026-08 기준) — Gemini·Groq는 잔액/사용량 조회 공개 API를 찾지
 > 못했습니다. Perplexity는 브라우저 쿠키 세션이 필요한 비공개 엔드포인트뿐이라 BYOK 구조에
 > 맞지 않고, Mistral은 콘솔 관리 API로 월 지출만 조회됩니다. Leonardo.ai는 잔액 엔드포인트가
