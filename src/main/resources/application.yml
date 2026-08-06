@@ -78,3 +78,9 @@ dashboard:
       # a .com key returns 401 here. Point base-url at that origin's API host if you hold one.
       base-url: https://api.moonshot.ai
       api-key: ${KIMI_API_KEY:}
+    siliconflow:
+      enabled: true
+      # The .cn and .com sites are separate accounts billing in different money; the provider reads
+      # the currency off this host (.cn = CNY, anything else = USD) because the response omits it.
+      base-url: https://api.siliconflow.com
+      api-key: ${SILICONFLOW_API_KEY:}
