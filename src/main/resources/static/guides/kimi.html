@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kimi(Moonshot) API 잔액 확인 방법 — users/me/balance API 정리</title>
+<meta name="description" content="Kimi(Moonshot AI) API의 잔액을 확인하는 방법. 콘솔 확인법과 users/me/balance API 직접 조회법, available_balance·cash_balance·voucher_balance의 차이, platform.kimi.ai와 .com 키가 호환되지 않는 함정까지.">
+<link rel="canonical" href="https://subscribeinventory.web.app/guides/kimi.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="SubscribeInventory">
+<meta property="og:title" content="Kimi(Moonshot) API 잔액 확인 방법">
+<meta property="og:description" content="users/me/balance API로 Kimi 잔액을 확인하는 법과 세 가지 잔액 필드의 차이 정리.">
+<meta property="og:url" content="https://subscribeinventory.web.app/guides/kimi.html">
+<meta property="og:image" content="https://subscribeinventory.web.app/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/guides/guide.css">
+<script type="application/ld+json">
+{
+	"@context": "https://schema.org",
+	"@type": "FAQPage",
+	"mainEntity": [
+		{
+			"@type": "Question",
+			"name": "Kimi 잔액 조회에 어떤 키가 필요한가요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "platform.kimi.ai에서 발급한 일반 API 키로 /v1/users/me/balance를 호출하면 됩니다. 별도의 관리자 키는 필요 없습니다." }
+		},
+		{
+			"@type": "Question",
+			"name": "available_balance, cash_balance, voucher_balance는 무엇이 다른가요?",
+			"acceptedAnswer": { "@type": "Answer", "text": "cash_balance는 실제로 충전한 금액으로 음수(빚)가 될 수 있고, voucher_balance는 프로모션 크레딧입니다. 실제로 호출에 쓸 수 있는 금액은 available_balance이며, 이 값이 0 이하가 되면 API 호출이 거부됩니다." }
+		},
+		{
+			"@type": "Question",
+			"name": "키를 넣었는데 401이 납니다.",
+			"acceptedAnswer": { "@type": "Answer", "text": "platform.kimi.ai와 platform.kimi.com은 서로 다른 계정 체계이고 키가 호환되지 않습니다. 한쪽에서 발급한 키를 다른 쪽 호스트로 호출하면 401이 납니다. 키를 발급받은 콘솔에 맞는 API 호스트를 사용하세요." }
+		}
+	]
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+	<nav class="crumb"><a href="/">SubscribeInventory</a> · <a href="/guides/">가이드 목록</a></nav>
+	<h1>Kimi(Moonshot) API 잔액 확인 방법</h1>
+	<p class="lead">Kimi는 잔액 전용 API를 공식 문서로 제공합니다. 다만 잔액이 세 가지로 쪼개져
+		오기 때문에 어느 값을 봐야 하는지가 갈립니다. (2026-08 기준)</p>
+
+	<h2>방법 1 — 콘솔에서 확인</h2>
+	<p><a href="https://platform.kimi.ai" rel="nofollow">platform.kimi.ai</a>에 로그인하면 잔액이
+		표시됩니다. 충전 내역과 사용 내역도 같은 화면에서 볼 수 있습니다.</p>
+
+	<h2>방법 2 — API로 직접 조회</h2>
+	<pre><code>curl "https://api.moonshot.ai/v1/users/me/balance" \
+  -H "Authorization: Bearer $KIMI_API_KEY"</code></pre>
+	<p>응답은 이렇게 옵니다.</p>
+	<pre><code>{
+  "code": 0,
+  "data": {
+    "available_balance": 49.58894,
+    "voucher_balance": 46.58893,
+    "cash_balance": 3.00001
+  },
+  "status": true
+}</code></pre>
+
+	<h2>세 가지 잔액 필드의 차이 (중요)</h2>
+	<p>여기서 실수하기 쉽습니다. <strong>봐야 할 값은 <code>available_balance</code></strong>입니다.</p>
+	<ul>
+		<li><code>cash_balance</code> — 실제로 충전한 금액입니다. <strong>음수가 될 수 있습니다</strong>(사용분이 충전분을 넘어선 경우).</li>
+		<li><code>voucher_balance</code> — 프로모션·쿠폰으로 받은 크레딧입니다.</li>
+		<li><code>available_balance</code> — 위 둘을 합쳐 <strong>실제로 호출에 쓸 수 있는 금액</strong>입니다. 이 값이 0 이하가 되면 Moonshot이 API 호출을 거부합니다.</li>
+	</ul>
+	<p>바우처가 남아 정상적으로 호출되는 계정인데도 <code>cash_balance</code>는 마이너스일 수 있습니다.
+		그래서 <code>cash_balance</code>만 읽으면 멀쩡한 계정을 "잔액 부족"으로 오판하게 되고,
+		두 값을 단순히 더하면 실제보다 많게 나옵니다.</p>
+
+	<h2>함정 — .ai 키와 .com 키는 호환되지 않습니다</h2>
+	<p><code>platform.kimi.ai</code>와 <code>platform.kimi.com</code>은 <strong>완전히 별개의 계정
+		체계</strong>입니다. 한쪽에서 발급한 키로 다른 쪽 호스트를 호출하면 401이 떨어집니다.</p>
+	<p>이 오류가 "키가 잘못됨"으로 읽히기 때문에, 키를 몇 번씩 재발급하며 헤매기 쉽습니다.
+		키를 어느 콘솔에서 받았는지 먼저 확인하고 그에 맞는 API 호스트를 쓰세요.</p>
+
+	<h2>방법 3 — 대시보드에서 다른 서비스와 한 번에</h2>
+	<a class="cta" href="/">
+		<strong>SubscribeInventory에서 한 화면으로 →</strong>
+		<span>Kimi 잔액과 함께 OpenAI·Claude·xAI·ElevenLabs 등 10개 서비스의 잔액·사용량을 무료로 한 번에
+			확인하고, Slack 잔여량 알림까지 받을 수 있습니다. 키는 브라우저에만 저장됩니다.</span>
+	</a>
+
+	<h2>자주 묻는 질문</h2>
+	<h3>특별한 키가 필요한가요?</h3>
+	<p>아니요, 일반 API 키면 됩니다. 관리자 전용 키를 따로 발급할 필요가 없습니다.</p>
+	<h3>어느 필드를 잔액으로 봐야 하나요?</h3>
+	<p><code>available_balance</code>입니다. 이 값이 0 이하면 호출이 막힙니다.</p>
+	<h3>401이 나는데 키는 맞습니다.</h3>
+	<p>키를 발급한 콘솔(.ai / .com)과 호출하는 호스트가 다른 경우입니다.</p>
+
+	<footer class="guide-foot">
+		다른 가이드: <a href="/guides/deepseek.html">DeepSeek</a> ·
+		<a href="/guides/siliconflow.html">SiliconFlow</a> · <a href="/guides/openai.html">OpenAI</a> ·
+		<a href="/guides/">전체 목록</a><br>
+		<a href="/">SubscribeInventory 대시보드</a> · <a href="/privacy.html">개인정보 안내</a>
+	</footer>
+</div>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 [![Deploy](https://github.com/keaunsolNa/SubscribeInventory/actions/workflows/deploy.yml/badge.svg)](https://github.com/keaunsolNa/SubscribeInventory/actions/workflows/deploy.yml)
 
-**8개 AI 서비스의 잔여 크레딧 · 할당량 · 이번 달 사용액을 한 화면에서.**
+**10개 AI 서비스의 잔여 크레딧 · 할당량 · 이번 달 사용액을 한 화면에서.**
 이번 달 지출 구성과 "무엇이 먼저 바닥나나"까지 계산합니다. 키는 브라우저에만 저장되고(BYOK),
 잔액이 임계값 아래로 내려가면 Slack으로 알려줍니다.
 
@@ -12,8 +12,8 @@
 
 ## 특징
 
-- **8개 서비스 통합 조회** — ElevenLabs · xAI(Grok) · OpenAI · Anthropic(Claude) · DeepSeek ·
-  OpenRouter · Stability AI · fal.ai (전부 실키로 응답 스키마 검증)
+- **10개 서비스 통합 조회** — ElevenLabs · xAI(Grok) · OpenAI · Anthropic(Claude) · DeepSeek ·
+  OpenRouter · Stability AI · fal.ai · Kimi(Moonshot) · SiliconFlow
 - **BYOK (Bring Your Own Key)** — 키는 브라우저 localStorage에만 저장. 서버는 요청별로 중계만
   하고 저장·로깅하지 않습니다. 코드가 공개되어 있으니 직접 확인하세요.
 - **추이 스파크라인 + 소진 예측** — 시간별 히스토리를 쌓아 최근 7일 추이와
@@ -35,7 +35,7 @@
 [브라우저]                    [Firebase Hosting]        [Spring Boot @ Cloud Run (서울)]
 대시보드(정적 HTML)  ──────▶  전 트래픽 rewrite  ──────▶  키 중계(무저장) · 60초 캐시 · JWT 인증
 키·설정: localStorage                                      │
-                                                          ├─▶ 8개 AI 서비스 API
+                                                          ├─▶ 10개 AI 서비스 API
 [Cloud Scheduler] ── 매시 알림 스윕 / 주간 리포트 ─────────┤
 [Cloud Billing → Pub/Sub] ── 예산 알림 ────────────────────┤
                                                           └─▶ Firestore (암호화 구독·히스토리)
@@ -54,11 +54,16 @@
 | OpenRouter | `GET /api/v1/credits` (Bearer) | 크레딧 | `total_credits − total_usage` |
 | Stability AI | `GET /v1/user/balance` (Bearer) | 크레딧 | 일반 키 가능 |
 | fal.ai | `GET /v1/account/billing?expand=credits` (`Key` 스킴) | 크레딧 | **ADMIN 스코프 키 전용** (기본 키는 403) |
+| Kimi (Moonshot) | `GET /v1/users/me/balance` (Bearer) | 선불 잔액 | `available_balance` 기준 — `cash_balance`는 음수 가능. `platform.kimi.ai`/`.com` 키 비호환 |
+| SiliconFlow | `GET /v1/user/info` (Bearer) | 선불 잔액 | `totalBalance`, 문자열. **응답에 통화 없음** — `.cn`=CNY / `.com`=USD |
 
+> 앞의 8개는 실제 키로 응답 스키마를 검증했습니다. Kimi·SiliconFlow는 공식 문서 기준으로
+> 구현했고 실키 검증은 아직입니다.
+>
 > **아직 넣지 못한 서비스** (2026-08 기준) — Gemini·Groq는 잔액/사용량 조회 공개 API를 찾지
 > 못했습니다. Perplexity는 브라우저 쿠키 세션이 필요한 비공개 엔드포인트뿐이라 BYOK 구조에
-> 맞지 않고, Mistral은 콘솔 관리 API로 월 지출만 조회됩니다. Kimi(Moonshot)는 공식 잔액 API
-> (`GET /v1/users/me/balance`)가 있어 추가 검토 중입니다.
+> 맞지 않고, Mistral은 콘솔 관리 API로 월 지출만 조회됩니다. Leonardo.ai는 잔액 엔드포인트가
+> 있지만 API 이용에 결제수단 등록이 필요하고 공식 응답 스키마를 확인하지 못해 보류했습니다.
 > 각 함정의 상세 설명은 [서비스별 가이드](https://subscribeinventory.web.app/guides/)에 있습니다.
 
 ## API
@@ -95,7 +100,7 @@ ELEVENLABS_API_KEY=... OPENAI_ADMIN_KEY=... mvn spring-boot:run
 
 ## 배포
 
-main에 푸시하면 GitHub Actions가 테스트(113개) 후 Workload Identity Federation(키리스)으로
+main에 푸시하면 GitHub Actions가 테스트(124개) 후 Workload Identity Federation(키리스)으로
 Cloud Run에 자동 배포합니다 (`.github/workflows/deploy.yml`). 수동 배포:
 
 ```bash

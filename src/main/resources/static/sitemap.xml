@@ -51,6 +51,16 @@
 		<priority>0.7</priority>
 	</url>
 	<url>
+		<loc>https://subscribeinventory.web.app/guides/kimi.html</loc>
+		<changefreq>monthly</changefreq>
+		<priority>0.7</priority>
+	</url>
+	<url>
+		<loc>https://subscribeinventory.web.app/guides/siliconflow.html</loc>
+		<changefreq>monthly</changefreq>
+		<priority>0.7</priority>
+	</url>
+	<url>
 		<loc>https://subscribeinventory.web.app/privacy.html</loc>
 		<changefreq>yearly</changefreq>
 		<priority>0.3</priority>
