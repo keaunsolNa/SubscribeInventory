@@ -87,6 +87,11 @@
 		--baseline: #c3c2b7;
 		--border: rgba(11, 11, 11, 0.10);
 		--series-1: #2a78d6;
+		--series-2: #eb6834;
+		--series-3: #1baf7a;
+		--series-4: #eda100;
+		--series-5: #e87ba4;
+		--series-6: #008300;
 		--track: #ecebe6;
 		--good: #0ca30c;
 		--warning: #fab219;
@@ -107,6 +112,11 @@
 		--baseline: #383835;
 		--border: rgba(255, 255, 255, 0.10);
 		--series-1: #3987e5;
+		--series-2: #d95926;
+		--series-3: #199e70;
+		--series-4: #c98500;
+		--series-5: #d55181;
+		--series-6: #008300;
 		--track: #2c2c2a;
 		--good: #0ca30c;
 		--warning: #fab219;
@@ -128,6 +138,11 @@
 			--baseline: #383835;
 			--border: rgba(255, 255, 255, 0.10);
 			--series-1: #3987e5;
+			--series-2: #d95926;
+			--series-3: #199e70;
+			--series-4: #c98500;
+			--series-5: #d55181;
+			--series-6: #008300;
 			--track: #2c2c2a;
 			--good-ink: #0ca30c;
 			--shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -246,6 +261,40 @@
 	.spark-wrap { margin-top: 10px; }
 	.spark { display: block; width: 100%; height: 28px; }
 	.spark-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+	/* ---- Monthly statistics ---- */
+	.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 18px; }
+	.panel { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); }
+	.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+	.panel-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+	.panel-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 12px; }
+	.panel-toggle { font-size: 11px; color: var(--text-secondary); background: none; border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+	.panel-toggle:hover { border-color: var(--baseline); }
+	.donut-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+	.donut { width: 132px; height: 132px; flex: none; }
+	.donut-seg { transition: opacity .12s; cursor: default; }
+	.donut-seg:hover { opacity: .72; }
+	.donut-mid { font-size: 15px; font-weight: 600; fill: var(--text-primary); }
+	.donut-mid-k { font-size: 8px; fill: var(--text-muted); }
+	.legend { flex: 1 1 170px; min-width: 170px; display: flex; flex-direction: column; gap: 5px; }
+	.legend-row { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+	.legend-sw { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+	.legend-name { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.legend-val { margin-left: auto; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+	.legend-pct { color: var(--text-muted); width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+	.burn-row { display: grid; grid-template-columns: 96px 1fr auto; align-items: center; gap: 9px; margin-bottom: 7px; font-size: 12px; }
+	.burn-name { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.burn-track { display: block; background: var(--track); border-radius: 4px; height: 9px; overflow: hidden; }
+	/* Inline elements ignore width and height, so the fill has to be blockified — as a span it
+	   rendered as nothing at all while the track still looked correct. */
+	.burn-fill { display: block; height: 100%; border-radius: 4px; }
+	.burn-days { color: var(--text-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+	.stat-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+	.stat-table th, .stat-table td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--grid); }
+	.stat-table th { color: var(--text-muted); font-weight: 500; }
+	.stat-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+	.chart-tip { position: fixed; z-index: 40; pointer-events: none; background: var(--surface-2); color: var(--text-primary); border: 1px solid var(--border); border-radius: 7px; padding: 6px 9px; font-size: 12px; box-shadow: var(--shadow); opacity: 0; transition: opacity .1s; white-space: nowrap; }
+	.chart-tip.show { opacity: 1; }
 	.faq-item h3 { font-size: 13.5px; margin: 14px 0 4px; }
 	.faq-item p { margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
 
@@ -350,6 +399,9 @@
 
 	<div class="summary" id="summary"></div>
 
+	<section class="stats" id="stats"></section>
+	<div class="chart-tip" id="chartTip"></div>
+
 	<div class="section-label" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
 		<span>서비스별 현황</span>
 		<label style="display:flex; align-items:center; gap:5px; font-weight:400; text-transform:none; letter-spacing:0; cursor:pointer;">
@@ -423,7 +475,9 @@
 		accessToken: "",  // X-Access-Token for deployments protected by ACCESS_TOKEN
 		alertSubscriptionId: "",
 		showDisabled: false,
-		history: {}      // providerId -> [{t, r, c}] hourly points (server-side, last 7 days)
+		history: {},     // providerId -> [{t, r, c}] hourly points (server-side, last 7 days)
+		monthly: null,   // { month, providers: [{providerId, consumed, from, to, samples}] }
+		statsTable: {}   // panel id -> true when the reader switched that chart to its table view
 	};
 
 	// ---- Browser-local persistence (BYOK keys + fee overrides never leave this device) ----
@@ -613,24 +667,32 @@
 			+ ' stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>';
 	}
 
-	// Linear burn over the last ~72h of balance points; silent unless the balance is shrinking.
-	function burnNote(providerId, current) {
+	// Linear burn over the last ~72h of balance points; null unless the balance is actually shrinking.
+	function burnDays(providerId, current) {
 		const series = (state.history[providerId] || []).filter(function (p) { return p.r != null; });
-		if (series.length < 2 || current == null) { return ""; }
+		if (series.length < 2 || current == null) { return null; }
 		const recent = series.filter(function (p) { return p.t >= Date.now() - 72 * 3600000; });
 		const points = recent.length >= 2 ? recent : series;
 		const first = points[0];
 		const last = points[points.length - 1];
 		const hours = (last.t - first.t) / 3600000;
-		if (hours <= 0) { return ""; }
+		if (hours <= 0) { return null; }
 		const burnPerDay = ((first.r - last.r) / hours) * 24;
-		if (burnPerDay <= 0.0001) { return ""; }
+		if (burnPerDay <= 0.0001) { return null; }
 		const days = current / burnPerDay;
 		// A barely-moving balance extrapolates to absurd horizons ("약 40000일 후 소진"), which reads
 		// as a broken number rather than a forecast. Past a year, 72h of samples says nothing useful.
-		if (days > 365) { return ""; }
-		const label = days < 1 ? "1일 미만" : "약 " + Math.round(days) + "일";
-		return '<div class="muted-note">이 속도면 ' + label + ' 후 소진 예상</div>';
+		return days > 365 ? null : days;
+	}
+
+	function burnLabel(days) {
+		return days < 1 ? "1일 미만" : "약 " + Math.round(days) + "일";
+	}
+
+	function burnNote(providerId, current) {
+		const days = burnDays(providerId, current);
+		if (days == null) { return ""; }
+		return '<div class="muted-note">이 속도면 ' + burnLabel(days) + ' 후 소진 예상</div>';
 	}
 
 	function historyBlock(provider) {
@@ -754,11 +816,219 @@
 		}).join("");
 	}
 
+	// ---- Monthly statistics ----
+	// Categorical hues are assigned in fixed slot order and never cycled: a reader who learned
+	// "xAI is orange" must not see it repainted because a filter changed the row count. Past six
+	// entries the tail folds into 기타 rather than inventing a seventh hue.
+	const SERIES_SLOTS = ["var(--series-1)", "var(--series-2)", "var(--series-3)",
+		"var(--series-4)", "var(--series-5)", "var(--series-6)"];
+	const DONUT_MAX = 6;
+
+	/**
+	 * This month's spend per provider, in USD only.
+	 *
+	 * Mixing units here would be the whole point of the chart gone wrong: Stability bills in
+	 * "credits" and ElevenLabs in characters, and neither is a dollar. They are excluded and named,
+	 * not silently folded in. Cost providers report a cumulative month-to-date figure, so their live
+	 * value is exact; prepaid balances are reconstructed from observed decreases, which under-counts
+	 * whenever nobody had the dashboard open — the two are tracked separately so the panel can say so.
+	 */
+	function monthlySpendRows() {
+		const providers = (state.data && state.data.providers) || [];
+		const byId = {};
+		((state.monthly && state.monthly.providers) || []).forEach(function (p) { byId[p.providerId] = p; });
+		const rows = [];
+		const excluded = [];
+		let estimated = false;
+		providers.forEach(function (p) {
+			if (p.status !== "OK") { return; }
+			const currency = (p.currency || "").toUpperCase();
+			if (p.metricType === "COST") {
+				if (p.cost == null) { return; }
+				if (currency !== "USD") { excluded.push(p.displayName); return; }
+				rows.push({ id: p.providerId, name: p.displayName, value: p.cost, exact: true });
+			} else if (p.metricType === "BALANCE") {
+				if (currency !== "USD") { excluded.push(p.displayName); return; }
+				const m = byId[p.providerId];
+				if (!m || !(m.consumed > 0)) { return; }
+				estimated = true;
+				rows.push({ id: p.providerId, name: p.displayName, value: m.consumed, exact: false, samples: m.samples });
+			} else {
+				excluded.push(p.displayName);
+			}
+		});
+		rows.sort(function (a, b) { return b.value - a.value; });
+		let shown = rows;
+		if (rows.length > DONUT_MAX) {
+			const tail = rows.slice(DONUT_MAX - 1);
+			shown = rows.slice(0, DONUT_MAX - 1).concat([{
+				id: "__other", name: "기타 " + tail.length + "곳", exact: true,
+				value: tail.reduce(function (sum, r) { return sum + r.value; }, 0)
+			}]);
+		}
+		const total = shown.reduce(function (sum, r) { return sum + r.value; }, 0);
+		return { rows: shown, total: total, excluded: excluded, estimated: estimated };
+	}
+
+	function donutSvg(rows, total) {
+		const R = 45;
+		const C = 2 * Math.PI * R;
+		const GAP = 2;
+		let offset = 0;
+		const arcs = rows.map(function (row, i) {
+			const arc = total > 0 ? (row.value / total) * C : 0;
+			// A surface-coloured gap separates neighbours instead of a stroke outline around each.
+			const visible = Math.max(arc - GAP, 0.5);
+			const seg = '<circle class="donut-seg" cx="60" cy="60" r="' + R + '" fill="none"'
+				+ ' stroke="' + SERIES_SLOTS[i % SERIES_SLOTS.length] + '" stroke-width="18"'
+				+ ' stroke-dasharray="' + visible.toFixed(2) + ' ' + (C - visible).toFixed(2) + '"'
+				+ ' stroke-dashoffset="' + (-offset).toFixed(2) + '"'
+				+ ' data-tip="' + escapeHtml(row.name + " · " + money(row.value, "USD")
+					+ " · " + num1.format(total > 0 ? (row.value / total) * 100 : 0) + "%") + '">'
+				+ '<title>' + escapeHtml(row.name + " " + money(row.value, "USD")) + '</title></circle>';
+			offset += arc;
+			return seg;
+		}).join("");
+		return '<svg class="donut" viewBox="0 0 120 120" role="img" aria-label="이번 달 지출 구성">'
+			+ '<g transform="rotate(-90 60 60)">' + arcs + '</g>'
+			+ '<text class="donut-mid" x="60" y="60" text-anchor="middle">' + escapeHtml(money(total, "USD")) + '</text>'
+			+ '<text class="donut-mid-k" x="60" y="72" text-anchor="middle">이번 달</text></svg>';
+	}
+
+	function spendPanel() {
+		const spend = monthlySpendRows();
+		const month = (state.monthly && state.monthly.month) || "";
+		if (spend.rows.length === 0) {
+			return panelHtml("spend", "이번 달 지출 구성", month + " · USD 기준",
+				'<div class="muted-note">아직 집계할 지출이 없습니다. 선불 잔액은 대시보드를 열어둔 동안에만 기록되므로 며칠 지나야 값이 쌓입니다.</div>',
+				null);
+		}
+		const legend = '<div class="legend">' + spend.rows.map(function (row, i) {
+			const pct = spend.total > 0 ? (row.value / spend.total) * 100 : 0;
+			return '<div class="legend-row">'
+				+ '<span class="legend-sw" style="background:' + SERIES_SLOTS[i % SERIES_SLOTS.length] + '"></span>'
+				+ '<span class="legend-name">' + escapeHtml(row.name) + (row.exact ? "" : " *") + '</span>'
+				+ '<span class="legend-val">' + escapeHtml(money(row.value, "USD")) + '</span>'
+				+ '<span class="legend-pct">' + num1.format(pct) + '%</span></div>';
+		}).join("") + '</div>';
+		const notes = [];
+		if (spend.estimated) { notes.push("* 선불 잔액은 관측된 구간의 감소분 합이라 실제보다 적을 수 있습니다"); }
+		if (spend.excluded.length) { notes.push("제외: " + spend.excluded.join(", ") + " (USD가 아닌 단위)"); }
+		const table = '<table class="stat-table"><thead><tr><th>서비스</th><th class="num">지출</th>'
+			+ '<th class="num">비중</th><th>기준</th></tr></thead><tbody>'
+			+ spend.rows.map(function (row) {
+				return '<tr><td>' + escapeHtml(row.name) + '</td>'
+					+ '<td class="num">' + escapeHtml(money(row.value, "USD")) + '</td>'
+					+ '<td class="num">' + num1.format(spend.total > 0 ? (row.value / spend.total) * 100 : 0) + '%</td>'
+					+ '<td>' + (row.exact ? "확정" : "관측 " + (row.samples || 0) + "회") + '</td></tr>';
+			}).join("") + '</tbody></table>';
+		const chart = '<div class="donut-row">' + donutSvg(spend.rows, spend.total) + legend + '</div>'
+			+ notes.map(function (n) { return '<div class="muted-note" style="margin-top:8px;">' + escapeHtml(n) + '</div>'; }).join("");
+		return panelHtml("spend", "이번 달 지출 구성", month + " · USD 기준", chart, table);
+	}
+
+	/**
+	 * Days until each provider runs dry, soonest first.
+	 *
+	 * Normalising to "days left" is what makes this comparable at all: credits, characters and
+	 * dollars cannot share an axis, but time can, so every provider appears here regardless of unit.
+	 */
+	function burndownRows() {
+		const providers = (state.data && state.data.providers) || [];
+		const rows = [];
+		providers.forEach(function (p) {
+			if (p.status !== "OK") { return; }
+			const current = p.metricType === "COST" ? null : p.remaining;
+			const days = burnDays(p.providerId, current);
+			if (days == null) { return; }
+			rows.push({ id: p.providerId, name: p.displayName, days: days });
+		});
+		rows.sort(function (a, b) { return a.days - b.days; });
+		return rows;
+	}
+
+	function burnTone(days) {
+		if (days < 3) { return { color: "var(--critical)", icon: "⛔", label: "임박" }; }
+		if (days < 7) { return { color: "var(--warning)", icon: "⚠︎", label: "주의" }; }
+		if (days < 14) { return { color: "var(--serious)", icon: "•", label: "여유 적음" }; }
+		return { color: "var(--good)", icon: "•", label: "여유" };
+	}
+
+	function burndownPanel() {
+		const rows = burndownRows();
+		if (rows.length === 0) {
+			return panelHtml("burn", "소진 임박 순위", "잔액이 줄고 있는 서비스",
+				'<div class="muted-note">아직 소진 속도를 계산할 만큼 기록이 쌓이지 않았습니다. 잔액이 실제로 줄어드는 구간이 두 번 이상 관측되어야 표시됩니다.</div>',
+				null);
+		}
+		const scale = Math.max(30, rows[rows.length - 1].days);
+		const bars = rows.map(function (row) {
+			const tone = burnTone(row.days);
+			const width = Math.max(2, Math.min(100, (row.days / scale) * 100));
+			return '<div class="burn-row" data-tip="' + escapeHtml(row.name + " · " + burnLabel(row.days) + " 후 소진 예상 · " + tone.label) + '">'
+				+ '<span class="burn-name">' + escapeHtml(row.name) + '</span>'
+				+ '<span class="burn-track"><span class="burn-fill" style="width:' + width.toFixed(1) + '%;background:' + tone.color + '"></span></span>'
+				+ '<span class="burn-days">' + escapeHtml(tone.icon + " " + burnLabel(row.days)) + '</span></div>';
+		}).join("");
+		const table = '<table class="stat-table"><thead><tr><th>서비스</th><th class="num">소진까지</th><th>상태</th></tr></thead><tbody>'
+			+ rows.map(function (row) {
+				const tone = burnTone(row.days);
+				return '<tr><td>' + escapeHtml(row.name) + '</td>'
+					+ '<td class="num">' + escapeHtml(burnLabel(row.days)) + '</td>'
+					+ '<td>' + escapeHtml(tone.icon + " " + tone.label) + '</td></tr>';
+			}).join("") + '</tbody></table>';
+		return panelHtml("burn", "소진 임박 순위", "최근 72시간 소비 속도 기준 · 단위 무관", bars, table);
+	}
+
+	function panelHtml(id, title, sub, chart, table) {
+		const showTable = !!state.statsTable[id];
+		const toggle = table
+			? '<button class="panel-toggle" data-stats-table="' + id + '">'
+				+ (showTable ? "차트로 보기" : "표로 보기") + '</button>'
+			: "";
+		return '<div class="panel">'
+			+ '<div class="panel-head"><span class="panel-title">' + escapeHtml(title) + '</span>' + toggle + '</div>'
+			+ '<div class="panel-sub">' + escapeHtml(sub) + '</div>'
+			+ (showTable && table ? table : chart) + '</div>';
+	}
+
+	function renderStats() {
+		const host = document.getElementById("stats");
+		if (!host) { return; }
+		if (!state.data) { host.innerHTML = ""; return; }
+		host.innerHTML = spendPanel() + burndownPanel();
+		host.querySelectorAll("[data-stats-table]").forEach(function (button) {
+			button.addEventListener("click", function () {
+				const id = button.getAttribute("data-stats-table");
+				state.statsTable[id] = !state.statsTable[id];
+				renderStats();
+			});
+		});
+		bindChartTips(host);
+	}
+
+	// Tooltips enhance; they never gate. Every value here is also in the legend and in the table
+	// view, so a reader who cannot hover loses nothing.
+	function bindChartTips(host) {
+		const tip = document.getElementById("chartTip");
+		if (!tip) { return; }
+		host.querySelectorAll("[data-tip]").forEach(function (el) {
+			el.addEventListener("mousemove", function (event) {
+				tip.textContent = el.getAttribute("data-tip");
+				tip.classList.add("show");
+				tip.style.left = Math.min(event.clientX + 14, window.innerWidth - tip.offsetWidth - 8) + "px";
+				tip.style.top = (event.clientY + 16) + "px";
+			});
+			el.addEventListener("mouseleave", function () { tip.classList.remove("show"); });
+		});
+	}
+
 	// ---- Render everything ----
 	function render() {
 		const data = state.data;
 		if (!data) { return; }
 		renderSummary(data);
+		renderStats();
 		const providers = data.providers || [];
 		// Cards default to configured-only; the checkbox reveals DISABLED services so users can
 		// discover what else the dashboard supports.
@@ -841,10 +1111,31 @@
 			setStatus("live", "실시간 · " + fmtDateTime(json.generatedAt));
 			render();
 			loadHistory();
+			loadMonthly();
 		} catch (err) {
 			setStatus("err", "연결 실패");
 			showBanner("백엔드 연결에 실패했습니다 (" + err.message + "). 주소·CORS·서버 상태를 확인하세요. 아래는 마지막 표시본입니다.");
 			if (!state.data) { state.data = demoData(); render(); }
+		}
+	}
+
+	// This month's consumed balance per provider. Like history it is supplementary, so a failure
+	// leaves the spend panel with its empty-state message rather than breaking the dashboard.
+	async function loadMonthly() {
+		if (state.mode === "demo" || !state.backendUrl) { return; }
+		try {
+			const headers = authHeaders({ "Content-Type": "application/json", "Accept": "application/json" });
+			const payload = keysPayload();
+			const res = await fetch(baseUrl() + "/api/usage/monthly", {
+				method: "POST",
+				headers: headers,
+				body: JSON.stringify(payload ? { keys: payload } : {})
+			});
+			if (!res.ok) { return; }
+			state.monthly = await res.json();
+			renderStats();
+		} catch (err) {
+			// leave the spend panel empty
 		}
 	}
 
